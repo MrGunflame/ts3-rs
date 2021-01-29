@@ -174,7 +174,8 @@ impl Client {
         Ok(Client { tx })
     }
 
-    async fn send(&self, cmd: String) -> Result<RawResp> {
+    /// Send a raw command directly to the server
+    pub async fn send(&self, cmd: String) -> Result<RawResp> {
         let tx = self.tx.clone();
 
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -206,21 +207,25 @@ impl Client {
         Ok(())
     }
 
-    /// Switch to the virtualserver (voice) with the given server id
-    pub async fn use_sid(&self, sid: usize) -> Result<()> {
-        self.send(format!("use sid={}", sid)).await?;
-        Ok(())
-    }
-
     /// Send a quit command, disconnecting the client and closing the TCP connection
     pub async fn quit(&self) -> Result<()> {
         self.send("quit".to_owned()).await?;
         Ok(())
     }
+
+    /// Switch to the virtualserver (voice) with the given server id
+    pub async fn use_sid(&self, sid: usize) -> Result<()> {
+        self.send(format!("use sid={}", sid)).await?;
+        Ok(())
+    }
 }
 
-struct RawResp {
-    items: Vec<HashMap<String, Option<String>>>,
+/// RawResp contains all data returned from the server
+/// When the items vector contains multiple entries, the server returned a list.
+/// Otherwise only a single item will be in the vector
+/// The HashMap contains all key-value pairs, but values are optional
+pub struct RawResp {
+    pub items: Vec<HashMap<String, Option<String>>>,
 }
 
 impl RawResp {
