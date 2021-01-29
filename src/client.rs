@@ -218,6 +218,22 @@ impl Client {
         self.send(format!("use sid={}", sid)).await?;
         Ok(())
     }
+
+    /// Like `use_sid` but instead use_port uses the voice port to connect to the virtualserver
+    pub async fn use_port(&self, port: u16) -> Result<()> {
+        self.send(format!("use port={}", port)).await?;
+        Ok(())
+    }
+
+    /// Returns information about the server version
+    pub async fn version(&self) -> Result<RawResp> {
+        self.send("version".to_owned()).await
+    }
+
+    /// Returns information about the query client connected
+    pub async fn whoami(&self) -> Result<RawResp> {
+        self.send("whoami".to_owned()).await
+    }
 }
 
 /// RawResp contains all data returned from the server
