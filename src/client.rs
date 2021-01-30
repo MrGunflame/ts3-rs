@@ -213,6 +213,28 @@ impl Client {
         Ok(())
     }
 
+    /// Adds one or more clients to the server group specified with sgid. Please note that a
+    /// client cannot be added to default groups or template groups.
+    pub async fn servergroupaddclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
+        self.send(format!(
+            "servergroupaddclient sgid={} cldbid={}",
+            sgid, cldbid
+        ))
+        .await?;
+        Ok(())
+    }
+
+    /// Removes one or more clients specified with cldbid from the server group specified with
+    /// sgid.  
+    pub async fn servergroupdelclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
+        self.send(format!(
+            "servergroupdelclient sgid={} cldbid={}",
+            sgid, cldbid
+        ))
+        .await?;
+        Ok(())
+    }
+
     /// Switch to the virtualserver (voice) with the given server id
     pub async fn use_sid(&self, sid: usize) -> Result<()> {
         self.send(format!("use sid={}", sid)).await?;
