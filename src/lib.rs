@@ -4,6 +4,8 @@
 //! # Examples
 //!
 //! ```rust
+//! use ts3::Client;
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 //!     // Create a new client and connect to the server query interface
