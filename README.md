@@ -1,7 +1,7 @@
 # TS3
 
 [![Crates.io](https://img.shields.io/crates/v/ts3)](https://crates.io/crates/ts3)
-[![Docs.rs](https://docs.rs/ts3/badge.svg)(https://docs.rs/ts3)]
+[![Docs.rs](https://docs.rs/ts3/badge.svg)](https://docs.rs/ts3)
 
 An async library to connect to the ts3 serverquey interface.
 
