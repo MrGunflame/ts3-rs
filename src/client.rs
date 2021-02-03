@@ -195,6 +195,31 @@ impl Client {
     }
 }
 
+pub enum ServerNotifyRegister {
+    Server,
+    Channel(usize),
+    TextServer,
+    TextChannel,
+    TextPrivate,
+}
+
+impl Display for ServerNotifyRegister {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        use ServerNotifyRegister::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Server => "server".to_owned(),
+                Channel(cid) => format!("channel id={}", cid),
+                TextServer => "textserver".to_owned(),
+                TextChannel => "textchannel".to_owned(),
+                TextPrivate => "textprivate".to_owned(),
+            }
+        )
+    }
+}
+
 // TS3 Commands go here
 impl Client {
     /// Authenticate with the given data.
@@ -244,6 +269,19 @@ impl Client {
     /// Like `use_sid` but instead use_port uses the voice port to connect to the virtualserver
     pub async fn use_port(&self, port: u16) -> Result<()> {
         self.send(format!("use port={}", port)).await?;
+        Ok(())
+    }
+
+    /// Registers for a specified category of events on a virtual server to receive
+    /// notification messages. Depending on the notifications you've registered for,
+    /// the server will send you a message on every event in the view of your
+    /// ServerQuery client (e.g. clients joining your channel, incoming text
+    /// messages, server configuration changes, etc). The event source is declared by
+    /// the event parameter while id can be used to limit the notifications to a
+    /// specific channel.  
+    pub async fn servernotifyregister(&self, event: ServerNotifyRegister) -> Result<()> {
+        self.send(format!("servernotifyregister event={}", event))
+            .await?;
         Ok(())
     }
 
