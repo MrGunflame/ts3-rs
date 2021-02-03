@@ -1,3 +1,4 @@
+use crate::event::{self, EventHandler, Handler};
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::convert::From;
@@ -6,6 +7,7 @@ use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::result;
 use std::str::from_utf8;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
@@ -76,10 +78,23 @@ struct Cmd {
     resp: oneshot::Sender<Result<RawResp>>,
 }
 
+pub(crate) struct ClientInner {
+    pub(crate) handler: Arc<dyn EventHandler>,
+}
+
+impl ClientInner {
+    fn new() -> ClientInner {
+        ClientInner {
+            handler: Arc::new(Handler),
+        }
+    }
+}
+
 /// A Client used to send commands to the serverquery interface.
 #[derive(Clone)]
 pub struct Client {
     tx: mpsc::Sender<Cmd>,
+    pub(crate) inner: Arc<RwLock<ClientInner>>,
 }
 
 impl Client {
@@ -92,13 +107,31 @@ impl Client {
         let (reader, mut writer) = stream.into_split();
         let mut reader = BufReader::new(reader);
 
+        // Read initial welcome message
+        {
+            let mut buf = Vec::new();
+            let _ = reader.read_until(b'\r', &mut buf).await;
+            buf.clear();
+            let _ = reader.read_until(b'\r', &mut buf).await;
+        }
+
         // read_tx and read_rx are used to communicate between the read and the write
         // thread
         let (read_tx, mut read_rx) = mpsc::channel(32);
 
+        // Create a new inner client
+        let client = Client {
+            tx: tx,
+            // handler: Arc::new(RwLock::new()),
+            inner: Arc::new(RwLock::new(ClientInner::new())),
+        };
+
         // Read task
+        let client2 = client.clone();
         spawn(async move {
             loop {
+                let client = client2.clone();
+
                 let mut buf = Vec::new();
                 if let Err(err) = reader.read_until(b'\r', &mut buf).await {
                     println!("{}", err);
@@ -109,6 +142,19 @@ impl Client {
                 buf.truncate(buf.len() - 2);
 
                 let resp = RawResp::from(buf.as_slice());
+
+                // If the message returned from the server is an event (determined by existing key)
+                // dispatch it to the correct handler
+                match event::is_event(&resp) {
+                    Some(event) => {
+                        spawn(async move {
+                            event::dispatch_event(client, resp, &event).await;
+                        });
+                        continue;
+                    }
+                    None => (),
+                }
+
                 match resp.is_error() {
                     true => {
                         let _ = read_tx.send((RawResp::new(), Error::from(resp))).await;
@@ -153,7 +199,7 @@ impl Client {
         });
 
         // Keepalive loop
-        let tx2 = tx.clone();
+        let tx2 = client.tx.clone();
         spawn(async move {
             loop {
                 let tx = tx2.clone();
@@ -171,7 +217,12 @@ impl Client {
             }
         });
 
-        Ok(Client { tx })
+        Ok(client)
+    }
+
+    pub fn set_event_handler<H: EventHandler + 'static>(&self, handler: H) {
+        let mut data = self.inner.write().unwrap();
+        data.handler = Arc::new(handler);
     }
 
     /// Send a raw command directly to the server
@@ -300,6 +351,7 @@ impl Client {
 /// When the items vector contains multiple entries, the server returned a list.
 /// Otherwise only a single item will be in the vector
 /// The HashMap contains all key-value pairs, but values are optional
+#[derive(Clone, Debug)]
 pub struct RawResp {
     pub items: Vec<HashMap<String, Option<String>>>,
 }
