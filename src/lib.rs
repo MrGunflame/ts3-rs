@@ -18,6 +18,7 @@
 //! }
 //! ```
 
-mod client;
+pub mod client;
+pub mod event;
 
 pub use client::{Client, Error, RawResp, Result};
