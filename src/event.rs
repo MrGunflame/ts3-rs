@@ -1,6 +1,5 @@
 use crate::client::{Client, RawResp};
 use async_trait::async_trait;
-use std::sync::Arc;
 
 // Returns Some(event_name) when the response is an event message and None if it is none
 pub(crate) fn is_event(resp: &RawResp) -> Option<String> {
@@ -54,18 +53,18 @@ pub(crate) async fn dispatch_event(c: Client, resp: RawResp, event: &str) {
 /// In order to receive events you must subscribe to the events you want to receive using servernotifyregister.
 #[async_trait]
 pub trait EventHandler: Send + Sync {
-    async fn cliententerview(&self, client: Client, event: RawResp) {}
-    async fn clientleftview(&self, client: Client, event: RawResp) {}
-    async fn serveredited(&self, client: Client, event: RawResp) {}
-    async fn channeldescriptionchanged(&self, client: Client, event: RawResp) {}
-    async fn channelpasswordchanged(&self, client: Client, event: RawResp) {}
-    async fn channelmoved(&self, client: Client, event: RawResp) {}
-    async fn channeledited(&self, client: Client, event: RawResp) {}
-    async fn channelcreated(&self, client: Client, event: RawResp) {}
-    async fn channeldeleted(&self, client: Client, event: RawResp) {}
-    async fn clientmoved(&self, client: Client, event: RawResp) {}
-    async fn textmessage(&self, client: Client, event: RawResp) {}
-    async fn tokenused(&self, client: Client, event: RawResp) {}
+    async fn cliententerview(&self, _client: Client, _event: RawResp) {}
+    async fn clientleftview(&self, _client: Client, _event: RawResp) {}
+    async fn serveredited(&self, _client: Client, _event: RawResp) {}
+    async fn channeldescriptionchanged(&self, _client: Client, _event: RawResp) {}
+    async fn channelpasswordchanged(&self, _client: Client, _event: RawResp) {}
+    async fn channelmoved(&self, _client: Client, _event: RawResp) {}
+    async fn channeledited(&self, _client: Client, _event: RawResp) {}
+    async fn channelcreated(&self, _client: Client, _event: RawResp) {}
+    async fn channeldeleted(&self, _client: Client, _event: RawResp) {}
+    async fn clientmoved(&self, _client: Client, _event: RawResp) {}
+    async fn textmessage(&self, _client: Client, _event: RawResp) {}
+    async fn tokenused(&self, _client: Client, _event: RawResp) {}
 }
 
 // Empty default impl for EventHandler
