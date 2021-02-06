@@ -1,5 +1,7 @@
 use crate::client::{Client, RawResp};
 use async_trait::async_trait;
+use std::convert::From;
+use std::str::FromStr;
 
 // Returns Some(event_name) when the response is an event message and None if it is none
 pub(crate) fn is_event(resp: &RawResp) -> Option<String> {
@@ -42,7 +44,7 @@ pub(crate) async fn dispatch_event(c: Client, resp: RawResp, event: &str) {
         "notifychannelcreated" => handler.channelcreated(c, resp),
         "notifychanneldeleted" => handler.channeldeleted(c, resp),
         "notifyclientmoved" => handler.clientmoved(c, resp),
-        "notifytextmessage" => handler.textmessage(c, resp),
+        "notifytextmessage" => handler.textmessage(c, resp.into()),
         "notifytokenused" => handler.tokenused(c, resp),
         _ => unreachable!(),
     }
@@ -63,8 +65,32 @@ pub trait EventHandler: Send + Sync {
     async fn channelcreated(&self, _client: Client, _event: RawResp) {}
     async fn channeldeleted(&self, _client: Client, _event: RawResp) {}
     async fn clientmoved(&self, _client: Client, _event: RawResp) {}
-    async fn textmessage(&self, _client: Client, _event: RawResp) {}
+    async fn textmessage(&self, _client: Client, _event: TextMessage) {}
     async fn tokenused(&self, _client: Client, _event: RawResp) {}
+}
+
+/// Returned from a "textmessage" event
+#[derive(Clone, Debug)]
+pub struct TextMessage {
+    pub targetmode: usize,
+    pub msg: String,
+    pub target: usize,
+    pub invokerid: usize,
+    pub invokername: String,
+    pub invokeruid: String,
+}
+
+impl From<RawResp> for TextMessage {
+    fn from(raw: RawResp) -> TextMessage {
+        TextMessage {
+            targetmode: get_field(&raw, "targetmod"),
+            msg: get_field(&raw, "msg"),
+            target: get_field(&raw, "target"),
+            invokerid: get_field(&raw, "invokerid"),
+            invokername: get_field(&raw, "invokername"),
+            invokeruid: get_field(&raw, "invokeruid"),
+        }
+    }
 }
 
 // Empty default impl for EventHandler
@@ -72,3 +98,22 @@ pub trait EventHandler: Send + Sync {
 pub(crate) struct Handler;
 
 impl EventHandler for Handler {}
+
+fn get_field<T>(raw: &RawResp, name: &str) -> T
+where
+    T: FromStr + Default,
+{
+    match raw.items.get(0) {
+        Some(val) => match val.get(name) {
+            Some(val) => match val {
+                Some(val) => match T::from_str(&val) {
+                    Ok(val) => val,
+                    Err(_) => T::default(),
+                },
+                None => T::default(),
+            },
+            None => T::default(),
+        },
+        None => T::default(),
+    }
+}
