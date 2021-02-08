@@ -271,6 +271,27 @@ impl Display for ServerNotifyRegister {
     }
 }
 
+pub enum TextMessageTarget {
+    Client(usize),
+    Channel,
+    Server,
+}
+
+impl Display for TextMessageTarget {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        use TextMessageTarget::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Client(clid) => format!("1 target={}", clid),
+                Channel => "2".to_owned(),
+                Server => "3".to_owned(),
+            }
+        )
+    }
+}
+
 // TS3 Commands go here
 impl Client {
     /// Authenticate with the given data.
@@ -286,6 +307,12 @@ impl Client {
     /// Send a quit command, disconnecting the client and closing the TCP connection
     pub async fn quit(&self) -> Result<()> {
         self.send("quit".to_owned()).await?;
+        Ok(())
+    }
+
+    pub async fn sendtextmessage(&self, target: TextMessageTarget, msg: &str) -> Result<()> {
+        self.send(format!("sendtextmessage targetmode={} msg={}", target, msg))
+            .await?;
         Ok(())
     }
 
@@ -311,18 +338,6 @@ impl Client {
         Ok(())
     }
 
-    /// Switch to the virtualserver (voice) with the given server id
-    pub async fn use_sid(&self, sid: usize) -> Result<()> {
-        self.send(format!("use sid={}", sid)).await?;
-        Ok(())
-    }
-
-    /// Like `use_sid` but instead use_port uses the voice port to connect to the virtualserver
-    pub async fn use_port(&self, port: u16) -> Result<()> {
-        self.send(format!("use port={}", port)).await?;
-        Ok(())
-    }
-
     /// Registers for a specified category of events on a virtual server to receive
     /// notification messages. Depending on the notifications you've registered for,
     /// the server will send you a message on every event in the view of your
@@ -333,6 +348,18 @@ impl Client {
     pub async fn servernotifyregister(&self, event: ServerNotifyRegister) -> Result<()> {
         self.send(format!("servernotifyregister event={}", event))
             .await?;
+        Ok(())
+    }
+
+    /// Switch to the virtualserver (voice) with the given server id
+    pub async fn use_sid(&self, sid: usize) -> Result<()> {
+        self.send(format!("use sid={}", sid)).await?;
+        Ok(())
+    }
+
+    /// Like `use_sid` but instead use_port uses the voice port to connect to the virtualserver
+    pub async fn use_port(&self, port: u16) -> Result<()> {
+        self.send(format!("use port={}", port)).await?;
         Ok(())
     }
 
