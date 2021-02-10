@@ -1,4 +1,5 @@
 use crate::client::{Client, RawResp};
+use crate::ParseError;
 use async_trait::async_trait;
 use std::convert::From;
 use std::str::FromStr;
@@ -67,6 +68,59 @@ pub trait EventHandler: Send + Sync {
     async fn clientmoved(&self, _client: Client, _event: RawResp) {}
     async fn textmessage(&self, _client: Client, _event: TextMessage) {}
     async fn tokenused(&self, _client: Client, _event: RawResp) {}
+}
+
+pub struct ClientLeftView {
+    cfid: usize,
+    ctid: usize,
+    reasonid: ReasonID,
+    invokerid: usize,
+    invokername: String,
+    invokeruid: String,
+    reasonmsg: String,
+    bantime: usize,
+    clid: usize,
+}
+
+/// Defines a reason why an event happened. Used in multiple event types.
+pub enum ReasonID {
+    /// Switched channel themselves or joined server
+    SwitchChannel = 0,
+    // Moved by another client or channel
+    Moved,
+    // Left server because of timeout (disconnect)
+    Timeout,
+    // Kicked from channel
+    ChannelKick,
+    // Kicked from server
+    ServerKick,
+    // Banned from server
+    Ban,
+    // Left server themselves
+    ServerLeave,
+    // Edited channel or server
+    Edited,
+    // Left server due shutdown
+    ServerShutdown,
+}
+
+impl FromStr for ReasonID {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<ReasonID, Self::Err> {
+        match s {
+            "0" => Ok(ReasonID::SwitchChannel),
+            "1" => Ok(ReasonID::Moved),
+            "3" => Ok(ReasonID::Timeout),
+            "4" => Ok(ReasonID::ChannelKick),
+            "5" => Ok(ReasonID::ServerKick),
+            "6" => Ok(ReasonID::Ban),
+            "8" => Ok(ReasonID::ServerLeave),
+            "10" => Ok(ReasonID::Edited),
+            "11" => Ok(ReasonID::ServerShutdown),
+            _ => Err(ParseError::InvalidEnum),
+        }
+    }
 }
 
 /// Returned from a "textmessage" event
