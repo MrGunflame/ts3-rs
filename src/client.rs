@@ -304,6 +304,12 @@ impl Client {
         Ok(())
     }
 
+    /// Deselects the active virtual server and logs out from the server instance.
+    pub async fn logout(&self) -> Result<()> {
+        self.send("logout".to_owned()).await?;
+        Ok(())
+    }
+
     /// Send a quit command, disconnecting the client and closing the TCP connection
     pub async fn quit(&self) -> Result<()> {
         self.send("quit".to_owned()).await?;
