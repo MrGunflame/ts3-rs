@@ -23,7 +23,9 @@ pub mod event;
 
 pub use client::{Client, Error, RawResp};
 
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8};
+use std::num::ParseIntError;
+use std::fmt::Debug;
 
 pub enum ParseError {
     InvalidEnum,
@@ -126,3 +128,73 @@ mod tests {
         );
     }
 }
+
+/// A type implementing `Decode` allows to be read from the TS stream
+pub trait Decode<T> {
+    type Err: Debug;
+
+    fn decode(buf: &[u8]) -> Result<T, Self::Err>;
+}
+
+// Implement `Decode` for `Vec<T>` if T implements `Decode`
+impl<T> Decode<Vec<T>> for Vec<T>
+where T: Decode<T> {
+    type Err = T::Err;
+
+    fn decode(buf: &[u8]) -> Result<Vec<T>, Self::Err> {
+        // Create a new vec and push all items to it
+        // Items are separated by a '|' char and no space before/after
+        let mut list = Vec::new();
+        for b in buf.split(|c|*c == b'|') {
+            list.push(T::decode(&b)?);
+        }
+        Ok(list)
+    }
+}
+
+/// The `impl_decode` macro implements `Decode` for any type that implements `FromStr`.
+#[macro_export]
+macro_rules! impl_decode {
+    ($t:ty) => {
+        impl Decode<$t> for $t {
+            type Err = std::num::ParseIntError;
+
+            fn decode(buf: &[u8]) -> std::result::Result<$t, Self::Err> {
+                from_utf8(buf).unwrap().parse()
+            }
+        }
+    };
+}
+
+// Implement `Decode` for `()`. Calling `()::decode(&[u8])` will never fail.
+impl Decode<()> for () {
+    type Err = ();
+
+    fn decode(_: &[u8]) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+// Implement `Decode` for `String`
+impl Decode<String> for String {
+    type Err = std::string::FromUtf8Error;
+
+    fn decode(buf: &[u8]) -> Result<String, Self::Err> {
+        String::from_utf8(buf.to_vec())
+    }
+}
+
+// Implement all integer types
+impl_decode!(isize);
+impl_decode!(i8);
+impl_decode!(i16);
+impl_decode!(i32);
+impl_decode!(i64);
+impl_decode!(i128);
+
+impl_decode!(usize);
+impl_decode!(u8);
+impl_decode!(u16);
+impl_decode!(u32);
+impl_decode!(u64);
+impl_decode!(u128);
