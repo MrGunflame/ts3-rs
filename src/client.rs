@@ -15,6 +15,7 @@ use tokio::net::ToSocketAddrs;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::spawn;
 use tokio::time::sleep;
+use crate::Decode;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -32,6 +33,12 @@ impl Error {
             TS3 { id, msg: _ } => *id == 0,
             _ => false,
         }
+    }
+}
+
+impl Default for Error {
+    fn default() -> Error {
+        Error::TS3{ id: 0, msg: String::new() }
     }
 }
 
@@ -73,9 +80,31 @@ impl From<RawResp> for Error {
     }
 }
 
+impl Decode<Error> for Error {
+    type Err = ();
+
+    fn decode(buf: &[u8]) -> result::Result<Error, Self::Err> {
+        let string = from_utf8(buf).unwrap();
+
+        let mut id = 0;
+        let mut msg = String::new();
+        for s in string.split(" ") {
+            let parts: Vec<&str> = s.splitn(2, "=").collect();
+
+            match *parts.get(0).unwrap() {
+                "id" => id = parts.get(1).unwrap().parse().unwrap(),
+                "msg" => msg = parts.get(1).unwrap().to_string(),
+                _ => (),
+            }
+        }
+
+        Ok(Error::TS3{id, msg})
+    }
+}
+
 struct Cmd {
     bytes: Bytes,
-    resp: oneshot::Sender<Result<RawResp>>,
+    resp: oneshot::Sender<Result<Vec<u8>>>,
 }
 
 pub(crate) struct ClientInner {
@@ -132,6 +161,7 @@ impl Client {
             loop {
                 let client = client2.clone();
 
+                // Read from the buffer until a '\r' indicating the end of a line
                 let mut buf = Vec::new();
                 if let Err(err) = reader.read_until(b'\r', &mut buf).await {
                     println!("{}", err);
@@ -141,39 +171,30 @@ impl Client {
                 // Remove the last two bytes '\n' and '\r'
                 buf.truncate(buf.len() - 2);
 
-                let resp = RawResp::from(buf.as_slice());
-
-                // If the message returned from the server is an event (determined by existing key)
-                // dispatch it to the correct handler
-                match event::is_event(&resp) {
-                    Some(event) => {
-                        spawn(async move {
-                            event::dispatch_event(client, resp, &event).await;
-                        });
-                        continue;
-                    }
-                    None => (),
-                }
-
-                match resp.is_error() {
+                // Query commands return 2 lines, the first being the response data while the sencond
+                // contains the error code. Other commands only return an error.
+                match buf.starts_with(b"error") {
                     true => {
-                        let _ = read_tx.send((RawResp::new(), Error::from(resp))).await;
+                        let _ = read_tx.send((Vec::new(), Error::decode(&buf).unwrap())).await;
                     }
                     false => {
-                        // Read another line
+                        // Clone the current buffer, which contains the response data
+                        let resp = buf.clone();
+
+                        // Read next line for the error
                         buf.clear();
                         if let Err(err) = reader.read_until(b'\r', &mut buf).await {
                             eprintln!("{}", err);
                             continue;
                         }
 
-                        let err = RawResp::from(buf.as_slice());
-                        let _ = read_tx.send((resp, Error::from(err))).await;
+                        let _ = read_tx.send((resp, Error::decode(&buf).unwrap())).await;
                     }
                 }
             }
         });
 
+        // Write Task
         spawn(async move {
             while let Some(cmd) = rx.recv().await {
                 // Write the command string
@@ -188,9 +209,11 @@ impl Client {
                     continue;
                 }
 
-                // Wait for the response from the reader thread
+                // Wait for the response from the reader task
                 let (resp, err) = read_rx.recv().await.unwrap();
 
+                // Write the response to the channel sent with the request. resp is None when
+                // an error occured.
                 let _ = cmd.resp.send(match err.ok() {
                     true => Ok(resp),
                     false => Err(err),
@@ -225,21 +248,21 @@ impl Client {
         data.handler = Arc::new(handler);
     }
 
-    /// Send a raw command directly to the server
-    pub async fn send(&self, cmd: String) -> Result<RawResp> {
+    /// Send a raw command directly to the server. The response will be directly decoded
+    /// into the type `T`. To get a HashMap like response, use the `RawResp` struct.
+    pub async fn send<T: Decode<T>>(&self, cmd: String) -> Result<T> {
         let tx = self.tx.clone();
 
+        // Create a new channel for receiving the response
         let (resp_tx, resp_rx) = oneshot::channel();
-        match tx
-            .send(Cmd {
-                bytes: Bytes::from(cmd.into_bytes()),
-                resp: resp_tx,
-            })
-            .await
-        {
+
+        match tx.send(Cmd {
+            bytes: Bytes::from(cmd.into_bytes()),
+            resp: resp_tx,
+        }).await {
             Ok(_) => {
                 let resp = resp_rx.await;
-                resp.unwrap()
+                Ok(T::decode(&resp.unwrap().unwrap()).unwrap())
             }
             Err(_) => Err(Error::SendError),
         }
@@ -437,5 +460,13 @@ impl From<&[u8]> for RawResp {
         }
 
         RawResp { items }
+    }
+}
+
+impl Decode<RawResp> for RawResp {
+    type Err = ();
+
+    fn decode(buf: &[u8]) -> result::Result<Self, Self::Err> {
+        Ok(buf.into())
     }
 }
