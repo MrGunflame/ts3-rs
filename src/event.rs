@@ -327,10 +327,3 @@ where
         None => T::default(),
     }
 }
-
-#[macro_export]
-macro_rules! dispatch_event {
-    ($name:expr) => {
-        ("notify" + $name).as_bytes() => handler.$name(c, resp),
-    };
-}
