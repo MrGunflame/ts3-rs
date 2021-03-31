@@ -22,6 +22,7 @@ pub mod client;
 pub mod event;
 
 pub use client::{Client, Error, RawResp};
+pub use event::EventHandler;
 
 use std::str::{FromStr, from_utf8};
 use std::num::ParseIntError;
