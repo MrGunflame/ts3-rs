@@ -2,9 +2,7 @@ use crate::event::{self, EventHandler, Handler};
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::convert::From;
-use std::error;
 use std::fmt::{self, Display, Formatter};
-use std::io;
 use std::result;
 use std::str::from_utf8;
 use std::sync::{Arc, RwLock};
@@ -15,16 +13,9 @@ use tokio::net::ToSocketAddrs;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::spawn;
 use tokio::time::sleep;
-use crate::Decode;
+use crate::{Decode, Error};
 
 pub type Result<T> = result::Result<T, Error>;
-
-#[derive(Debug)]
-pub enum Error {
-    IO(io::Error),
-    TS3 { id: usize, msg: String },
-    SendError,
-}
 
 impl Error {
     fn ok(&self) -> bool {
@@ -33,35 +24,6 @@ impl Error {
             TS3 { id, msg: _ } => *id == 0,
             _ => false,
         }
-    }
-}
-
-impl Default for Error {
-    fn default() -> Error {
-        Error::TS3{ id: 0, msg: String::new() }
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        use Error::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                IO(err) => format!("{}", err),
-                TS3 { id, msg } => format!("TS3 Error {}: {}", id, msg),
-                SendError => "SendError".to_owned(),
-            }
-        )
-    }
-}
-
-impl error::Error for Error {}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IO(err)
     }
 }
 
@@ -77,28 +39,6 @@ impl From<RawResp> for Error {
                 .unwrap(),
             msg: resp.items[0].remove("msg").unwrap().unwrap(),
         }
-    }
-}
-
-impl Decode<Error> for Error {
-    type Err = ();
-
-    fn decode(buf: &[u8]) -> result::Result<Error, Self::Err> {
-        let string = from_utf8(buf).unwrap();
-
-        let mut id = 0;
-        let mut msg = String::new();
-        for s in string.split(" ") {
-            let parts: Vec<&str> = s.splitn(2, "=").collect();
-
-            match *parts.get(0).unwrap() {
-                "id" => id = parts.get(1).unwrap().parse().unwrap(),
-                "msg" => msg = parts.get(1).unwrap().to_string(),
-                _ => (),
-            }
-        }
-
-        Ok(Error::TS3{id, msg})
     }
 }
 

@@ -21,12 +21,15 @@
 pub mod client;
 pub mod event;
 
-pub use client::{Client, Error, RawResp};
+pub use client::{Client, RawResp};
 pub use event::EventHandler;
 
 use std::str::{FromStr, from_utf8};
+use std::string::FromUtf8Error;
 use std::num::ParseIntError;
 use std::fmt::Debug;
+use std::io;
+use std::fmt::{self, Formatter, Display};
 
 pub enum ParseError {
     InvalidEnum,
@@ -199,3 +202,75 @@ impl_decode!(u16);
 impl_decode!(u32);
 impl_decode!(u64);
 impl_decode!(u128);
+
+#[derive(Debug)]
+pub enum Error {
+    IO(io::Error),
+    TS3 { id: u16, msg: String },
+    SendError,
+    ParseIntError(ParseIntError),
+    Utf8Error(FromUtf8Error),
+}
+
+impl std::error::Error for Error {}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IO(err)
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(err: ParseIntError) -> Error {
+        Error::ParseIntError(err)
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(err: FromUtf8Error) -> Error {
+        Error::Utf8Error(err)
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        use Error::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                IO(err) => format!("{}", err),
+                TS3 { id, msg } => format!("TS3 Error {}: {}", id, msg),
+                SendError => "SendError".to_owned(),
+                ParseIntError(err) => format!("{}", err),
+                Utf8Error(err) => format!("{}", err),
+            }
+        )
+    }
+}
+
+impl Decode<Error> for Error {
+    type Err = Error;
+
+    fn decode(buf: &[u8]) -> Result<Error, Error> {
+        let (mut id, mut msg) = (0, String::new());
+
+        for s in buf.split(|c| *c == b' ') {
+            let parts: Vec<&[u8]> = s.splitn(2, |c| *c == b'=').collect();
+
+            match *parts.get(0).unwrap() {
+                b"id" => id = match u16::decode(parts.get(1).unwrap()) {
+                    Ok(id) => id,
+                    Err(err) => return Err(err.into()),
+                },
+                b"msg" => msg = match String::decode(parts.get(1).unwrap()) {
+                    Ok(msg) => msg,
+                    Err(err) => return Err(err.into()),
+                },
+                _ => (),
+            }
+        }
+
+        Ok(Error::TS3{id, msg})
+    }
+}
