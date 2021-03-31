@@ -171,6 +171,12 @@ impl Client {
                 // Remove the last two bytes '\n' and '\r'
                 buf.truncate(buf.len() - 2);
 
+                // If the received data is an event dispatch it to the correct handler and wait for
+                // the next line.
+                if client.dispatch_event(&buf) {
+                    continue;
+                }
+
                 // Query commands return 2 lines, the first being the response data while the sencond
                 // contains the error code. Other commands only return an error.
                 match buf.starts_with(b"error") {
