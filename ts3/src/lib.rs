@@ -31,6 +31,7 @@ use std::fmt::Debug;
 use std::io;
 use std::fmt::{self, Formatter, Display};
 pub use ts3_derive::Decode;
+use std::convert::TryFrom;
 
 pub enum ParseError {
     InvalidEnum,
@@ -185,7 +186,37 @@ impl Decode<String> for String {
     type Err = std::string::FromUtf8Error;
 
     fn decode(buf: &[u8]) -> Result<String, Self::Err> {
-        String::from_utf8(buf.to_vec())
+        let mut string = String::with_capacity(buf.len());
+
+        let mut iter = buf.into_iter().peekable();
+        while let Some(b) = iter.next() {
+            match b {
+                b'\\' => {
+                        match iter.peek() {
+                        Some(c) => match c {
+                            b'\\' => string.push('\\'),
+                            b'/' => string.push('/'),
+                            b's' => string.push(' '),
+                            b'p' => string.push('|'),
+                            b'a' => string.push(7u8 as char),
+                            b'b' => string.push(8u8 as char),
+                            b'f' => string.push(12u8 as char),
+                            b'n' => string.push(10u8 as char),
+                            b'r' => string.push(13u8 as char),
+                            b't' => string.push(9u8 as char),
+                            b'v' => string.push(11u8 as char),
+                            _ => unreachable!(),
+                        }
+                        None => unreachable!(),
+                    }
+                    iter.next();
+                }
+                _ => string.push(char::try_from(*b).unwrap()),
+            }
+        }
+
+
+        Ok(string)
     }
 }
 
