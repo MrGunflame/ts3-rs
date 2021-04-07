@@ -215,8 +215,22 @@ impl Decode<String> for String {
             }
         }
 
-
         Ok(string)
+    }
+}
+
+impl Decode<bool> for bool {
+    type Err = Error;
+
+    fn decode(buf: &[u8]) -> Result<bool, Self::Err> {
+        match buf.get(0) {
+            Some(b) => match b {
+                b'0' => Ok(true),
+                b'1' => Ok(false),
+                _ => panic!("Unexpected char decoding bool: {}", b),
+            }
+            None => panic!("Unexpected end decoding bool"),
+        }
     }
 }
 
