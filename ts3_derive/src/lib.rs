@@ -49,7 +49,10 @@ fn gen_expr(data: &Data) -> TokenStream {
 
                         quote_spanned! {f.span()=> 
                             #bytes_fmt => {
-                                st.#name = match <#ty>::decode(parts.get(1).unwrap()) {
+                                st.#name = match <#ty>::decode(match parts.get(1) {
+                                    Some(val) => val,
+                                    None => continue,
+                                }) {
                                 Ok(val) => val,
                                 Err(err) => return Err(err.into()),
                             }
