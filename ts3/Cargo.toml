@@ -14,7 +14,7 @@ repository = "https://github.com/MrGunflame/ts3-rs"
 tokio = { version = "1.0.2", features = [ "rt", "rt-multi-thread", "io-util", "net", "time", "sync" ] }
 async-trait = "0.1.42"
 bytes = "1.0.1"
-ts3_derive = { path = "../ts3_derive" }
+ts3_derive = { version = "0.1.0", path = "../ts3_derive" }
 
 [dev-dependencies]
 tokio = { version = "1.0.2", features = [ "macros" ] }
