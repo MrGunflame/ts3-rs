@@ -26,9 +26,9 @@ impl Client {
         let buf = rest.to_owned();
 
         match event_name {
-            b"cliententerview" => {
+            b"notifycliententerview" => {
                 task::spawn(async move {
-                    handler.cliententerview(c, RawResp::decode(&buf).unwrap()).await;
+                    handler.cliententerview(c, ClientEnterView::decode(&buf).unwrap()).await;
                 });
                 true
             },
@@ -107,7 +107,7 @@ impl Client {
 /// In order to receive events you must subscribe to the events you want to receive using servernotifyregister.
 #[async_trait]
 pub trait EventHandler: Send + Sync {
-    async fn cliententerview(&self, _client: Client, _event: RawResp) {}
+    async fn cliententerview(&self, _client: Client, _event: ClientEnterView) {}
     async fn clientleftview(&self, _client: Client, _event: ClientLeftView) {}
     async fn serveredited(&self, _client: Client, _event: RawResp) {}
     async fn channeldescriptionchanged(&self, _client: Client, _event: RawResp) {}
@@ -119,6 +119,41 @@ pub trait EventHandler: Send + Sync {
     async fn clientmoved(&self, _client: Client, _event: RawResp) {}
     async fn textmessage(&self, _client: Client, _event: TextMessage) {}
     async fn tokenused(&self, _client: Client, _event: RawResp) {}
+}
+
+#[derive(Debug, Decode, Default)]
+pub struct ClientEnterView {
+    pub cfid: u64,
+    pub ctid: u64,
+    pub reasonid: ReasonID,
+    pub clid: u64,
+    pub client_unique_identifier: String,
+    pub client_nickname: String,
+    pub client_input_muted: bool,
+    pub client_output_muted: bool,
+    pub client_outputonly_muted: bool,
+    pub client_input_hardware: u64,
+    pub client_output_hardwarer: u64,
+    // client_meta_data: (),
+    pub client_is_recording: bool,
+    pub client_database_id: u64,
+    pub client_channel_group_id: u64,
+    pub client_servergroups: Vec<u64>,
+    pub client_away: bool,
+    pub client_away_message: String,
+    pub client_type: u8,
+    // client_flag_avatar: (),
+    pub client_talk_power: u64,
+    pub client_talk_request: bool,
+    pub client_talk_request_msg: String,
+    pub client_description: String,
+    pub client_is_talker: bool,
+    pub client_nickname_phoentic: String,
+    pub client_needed_serverquey_view_power: u64,
+    pub client_icon_id: u64,
+    pub client_country: String,
+    pub client_channel_group_inherited_channel_id: u64,
+    pub client_badges: String,
 }
 
 #[derive(Debug, Decode, Default)]
