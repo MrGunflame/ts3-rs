@@ -121,6 +121,7 @@ pub trait EventHandler: Send + Sync {
     async fn tokenused(&self, _client: Client, _event: RawResp) {}
 }
 
+/// Data for a `cliententerview` event.
 #[derive(Debug, Decode, Default)]
 pub struct ClientEnterView {
     pub cfid: u64,
@@ -156,17 +157,18 @@ pub struct ClientEnterView {
     pub client_badges: String,
 }
 
+/// Data for a `clientleftview` event.
 #[derive(Debug, Decode, Default)]
 pub struct ClientLeftView {
-    cfid: usize,
-    ctid: usize,
-    reasonid: ReasonID,
-    invokerid: usize,
-    invokername: String,
-    invokeruid: String,
-    reasonmsg: String,
-    bantime: usize,
-    clid: usize,
+    pub cfid: usize,
+    pub ctid: usize,
+    pub reasonid: ReasonID,
+    pub invokerid: usize,
+    pub invokername: String,
+    pub invokeruid: String,
+    pub reasonmsg: String,
+    pub bantime: usize,
+    pub clid: usize,
 }
 
 /// Defines a reason why an event happened. Used in multiple event types.
