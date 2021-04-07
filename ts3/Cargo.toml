@@ -1,0 +1,20 @@
+[package]
+name = "ts3"
+version = "0.2.6"
+authors = ["0xc0001a2040 <mrgunflame@protonmail.com>"]
+edition = "2018"
+description = "A TeamSpeak3 Query library"
+documentation = "https://docs.rs/ts3"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/MrGunflame/ts3-rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.0.2", features = [ "rt", "rt-multi-thread", "io-util", "net", "time", "sync" ] }
+async-trait = "0.1.42"
+bytes = "1.0.1"
+ts3_derive = { path = "../ts3_derive" }
+
+[dev-dependencies]
+tokio = { version = "1.0.2", features = [ "macros" ] }
