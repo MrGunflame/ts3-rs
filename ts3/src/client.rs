@@ -1,4 +1,5 @@
 use crate::event::{self, EventHandler, Handler};
+use crate::{Decode, Error};
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::convert::From;
@@ -13,7 +14,6 @@ use tokio::net::ToSocketAddrs;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::spawn;
 use tokio::time::sleep;
-use crate::{Decode, Error};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -121,7 +121,9 @@ impl Client {
                 // contains the error code. Other commands only return an error.
                 match buf.starts_with(b"error") {
                     true => {
-                        let _ = read_tx.send((Vec::new(), Error::decode(&buf).unwrap())).await;
+                        let _ = read_tx
+                            .send((Vec::new(), Error::decode(&buf).unwrap()))
+                            .await;
                     }
                     false => {
                         // Clone the current buffer, which contains the response data
@@ -202,10 +204,13 @@ impl Client {
         // Create a new channel for receiving the response
         let (resp_tx, resp_rx) = oneshot::channel();
 
-        match tx.send(Cmd {
-            bytes: Bytes::from(cmd.into_bytes()),
-            resp: resp_tx,
-        }).await {
+        match tx
+            .send(Cmd {
+                bytes: Bytes::from(cmd.into_bytes()),
+                resp: resp_tx,
+            })
+            .await
+        {
             Ok(_) => {
                 let resp = resp_rx.await;
                 Ok(T::decode(&resp.unwrap().unwrap()).unwrap())

@@ -24,14 +24,14 @@ pub mod event;
 pub use client::{Client, RawResp};
 pub use event::EventHandler;
 
-use std::str::{FromStr, from_utf8};
-use std::string::FromUtf8Error;
-use std::num::ParseIntError;
-use std::fmt::Debug;
-use std::io;
-use std::fmt::{self, Formatter, Display};
-pub use ts3_derive::Decode;
 use std::convert::TryFrom;
+use std::fmt::Debug;
+use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::num::ParseIntError;
+use std::str::{from_utf8, FromStr};
+use std::string::FromUtf8Error;
+pub use ts3_derive::Decode;
 
 pub enum ParseError {
     InvalidEnum,
@@ -144,14 +144,16 @@ pub trait Decode<T> {
 
 // Implement `Decode` for `Vec<T>` if T implements `Decode`
 impl<T> Decode<Vec<T>> for Vec<T>
-where T: Decode<T> {
+where
+    T: Decode<T>,
+{
     type Err = T::Err;
 
     fn decode(buf: &[u8]) -> Result<Vec<T>, Self::Err> {
         // Create a new vec and push all items to it
         // Items are separated by a '|' char and no space before/after
         let mut list = Vec::new();
-        for b in buf.split(|c|*c == b'|') {
+        for b in buf.split(|c| *c == b'|') {
             list.push(T::decode(&b)?);
         }
         Ok(list)
@@ -192,7 +194,7 @@ impl Decode<String> for String {
         while let Some(b) = iter.next() {
             match b {
                 b'\\' => {
-                        match iter.peek() {
+                    match iter.peek() {
                         Some(c) => match c {
                             b'\\' => string.push('\\'),
                             b'/' => string.push('/'),
@@ -206,7 +208,7 @@ impl Decode<String> for String {
                             b't' => string.push(9u8 as char),
                             b'v' => string.push(11u8 as char),
                             _ => unreachable!(),
-                        }
+                        },
                         None => unreachable!(),
                     }
                     iter.next();
@@ -228,7 +230,7 @@ impl Decode<bool> for bool {
                 b'0' => Ok(true),
                 b'1' => Ok(false),
                 _ => panic!("Unexpected char decoding bool: {}", b),
-            }
+            },
             None => panic!("Unexpected end decoding bool"),
         }
     }
@@ -305,18 +307,22 @@ impl Decode<Error> for Error {
             let parts: Vec<&[u8]> = s.splitn(2, |c| *c == b'=').collect();
 
             match *parts.get(0).unwrap() {
-                b"id" => id = match u16::decode(parts.get(1).unwrap()) {
-                    Ok(id) => id,
-                    Err(err) => return Err(err.into()),
-                },
-                b"msg" => msg = match String::decode(parts.get(1).unwrap()) {
-                    Ok(msg) => msg,
-                    Err(err) => return Err(err.into()),
-                },
+                b"id" => {
+                    id = match u16::decode(parts.get(1).unwrap()) {
+                        Ok(id) => id,
+                        Err(err) => return Err(err.into()),
+                    }
+                }
+                b"msg" => {
+                    msg = match String::decode(parts.get(1).unwrap()) {
+                        Ok(msg) => msg,
+                        Err(err) => return Err(err.into()),
+                    }
+                }
                 _ => (),
             }
         }
 
-        Ok(Error::TS3{id, msg})
+        Ok(Error::TS3 { id, msg })
     }
 }
