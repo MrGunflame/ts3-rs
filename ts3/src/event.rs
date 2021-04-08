@@ -1,5 +1,5 @@
 use crate::client::{Client, RawResp};
-use crate::{ParseError, Decode, Error};
+use crate::{Decode, Error, ParseError};
 use async_trait::async_trait;
 use std::convert::From;
 use std::str::FromStr;
@@ -14,7 +14,7 @@ impl Client {
         let handler = c.inner.read().unwrap().handler.clone();
 
         // Split of the first argument (separated by ' '). It contains the event name.
-        // The rest of the buffer contains the event data. 
+        // The rest of the buffer contains the event data.
         let (event_name, rest): (&[u8], &[u8]);
         {
             let vec: Vec<&[u8]> = buf.splitn(2, |c| *c == b' ').collect();
@@ -28,76 +28,96 @@ impl Client {
         match event_name {
             b"notifycliententerview" => {
                 task::spawn(async move {
-                    handler.cliententerview(c, ClientEnterView::decode(&buf).unwrap()).await;
+                    handler
+                        .cliententerview(c, ClientEnterView::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifyclientleftview" => {
                 task::spawn(async move {
-                    handler.clientleftview(c, ClientLeftView::decode(&buf).unwrap()).await;
+                    handler
+                        .clientleftview(c, ClientLeftView::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifyserveredited" => {
                 task::spawn(async move {
-                    handler.serveredited(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .serveredited(c, ServerEdited::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifychanneldescriptionchanged" => {
                 task::spawn(async move {
-                    handler.channeldescriptionchanged(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channeldescriptionchanged(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifychannelpasswordchanged" => {
                 task::spawn(async move {
-                    handler.channelpasswordchanged(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channelpasswordchanged(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifychannelmoved" => {
                 task::spawn(async move {
-                    handler.channelmoved(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channelmoved(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifychanneledited" => {
                 task::spawn(async move {
-                    handler.channeledited(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channeledited(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifychannelcreated" => {
                 task::spawn(async move {
-                    handler.channelcreated(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channelcreated(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
-            b"notifychanneldeleted"=> {
+            }
+            b"notifychanneldeleted" => {
                 task::spawn(async move {
-                    handler.channeldeleted(c, RawResp::decode(&buf).unwrap()).await;
+                    handler
+                        .channeldeleted(c, RawResp::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifyclientmoved" => {
                 task::spawn(async move {
                     handler.clientmoved(c, RawResp::decode(&buf).unwrap()).await;
                 });
                 true
-            },
+            }
             b"notifytextmessage" => {
                 task::spawn(async move {
-                    handler.textmessage(c, TextMessage::decode(&buf).unwrap()).await;
+                    handler
+                        .textmessage(c, TextMessage::decode(&buf).unwrap())
+                        .await;
                 });
                 true
-            },
+            }
             b"notifytokenused" => {
                 task::spawn(async move {
                     handler.tokenused(c, RawResp::decode(&buf).unwrap()).await;
                 });
                 true
-            },
+            }
             _ => false,
         }
     }
@@ -109,7 +129,7 @@ impl Client {
 pub trait EventHandler: Send + Sync {
     async fn cliententerview(&self, _client: Client, _event: ClientEnterView) {}
     async fn clientleftview(&self, _client: Client, _event: ClientLeftView) {}
-    async fn serveredited(&self, _client: Client, _event: RawResp) {}
+    async fn serveredited(&self, _client: Client, _event: ServerEdited) {}
     async fn channeldescriptionchanged(&self, _client: Client, _event: RawResp) {}
     async fn channelpasswordchanged(&self, _client: Client, _event: RawResp) {}
     async fn channelmoved(&self, _client: Client, _event: RawResp) {}
@@ -169,6 +189,29 @@ pub struct ClientLeftView {
     pub reasonmsg: String,
     pub bantime: usize,
     pub clid: usize,
+}
+
+#[derive(Debug, Decode, Default)]
+pub struct ServerEdited {
+    pub reasonid: ReasonID,
+    pub invokerid: u64,
+    pub invokername: String,
+    pub invokeruid: String,
+    pub virtualserver_name: String,
+    pub virtualserver_codec_encryption_mode: String,
+    pub virtualserver_default_server_group: u64,
+    pub virtualserver_default_channel_group: u64,
+    pub virtualserver_hostbanner_url: String,
+    pub virtualserver_hostbanner_gfx_url: String,
+    pub virtualserver_hostbanner_gfx_interval: u64,
+    pub virtualserver_priority_speaker_dimm_modificator: String,
+    pub virtualserver_hostbutton_tooltip: String,
+    pub virtualserver_hostbutton_url: String,
+    pub virtualserver_hostbutton_gfx_url: String,
+    pub virtualserver_name_phoentic: String,
+    pub virtualserver_icon_id: u64,
+    pub virtualserver_hostbanner_mode: String,
+    pub virtualserver_channel_temp_delete_delay_default: u64,
 }
 
 /// Defines a reason why an event happened. Used in multiple event types.
