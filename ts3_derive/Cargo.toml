@@ -1,14 +1,12 @@
 [package]
 name = "ts3_derive"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["MrGunflame <mrgunflame@protonmail.com>"]
 edition = "2018"
 description = "Derive macro for ts3 crate"
 documentation = "https://docs.rs/ts3_derive"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/MrGunflame/ts3-rs"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 proc-macro = true
