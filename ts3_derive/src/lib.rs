@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, TokenStreamExt};
+use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
@@ -11,10 +11,10 @@ pub fn decode_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expr = gen_expr(&input.data);
 
     let expanded = quote! {
-        impl Decode<#name> for #name {
-            type Err = Error;
+        impl ts3::Decode<#name> for #name {
+            type Err = ts3::Error;
 
-            fn decode(buf: &[u8]) -> Result<#name, Error> {
+            fn decode(buf: &[u8]) -> std::result::Result<#name, ts3::Error> {
                 let mut st = #name::default();
 
                 for s in buf.split(|c| *c == b' ') {
