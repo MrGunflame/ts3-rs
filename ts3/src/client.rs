@@ -348,7 +348,7 @@ impl Client {
     }
 
     /// Returns information about the server version
-    pub async fn version(&self) -> Result<RawResp> {
+    pub async fn version(&self) -> Result<Version> {
         self.send("version".to_owned()).await
     }
 
@@ -356,6 +356,14 @@ impl Client {
     pub async fn whoami(&self) -> Result<RawResp> {
         self.send("whoami".to_owned()).await
     }
+}
+
+/// Data returned from the `version` command.
+#[derive(Debug, Decode, Default)]
+pub struct Version {
+    pub version: String,
+    pub build: u64,
+    pub platform: String,
 }
 
 /// RawResp contains all data returned from the server
