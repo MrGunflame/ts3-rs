@@ -1,3 +1,7 @@
+// Required for ts3_derive macro.
+#[allow(unused_imports)]
+use crate as ts3;
+
 use crate::client::{Client, RawResp};
 use crate::{Decode, Error, ParseError};
 use async_trait::async_trait;
@@ -191,6 +195,7 @@ pub struct ClientLeftView {
     pub clid: usize,
 }
 
+/// Data for a `serveredited` event.
 #[derive(Debug, Decode, Default)]
 pub struct ServerEdited {
     pub reasonid: ReasonID,

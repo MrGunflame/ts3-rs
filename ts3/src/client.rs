@@ -1,3 +1,7 @@
+// Required for ts3_derive macro.
+#[allow(unused_imports)]
+use crate as ts3;
+
 use crate::event::{self, EventHandler, Handler};
 use crate::{Decode, Error};
 use bytes::Bytes;
