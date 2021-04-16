@@ -272,6 +272,12 @@ impl Display for TextMessageTarget {
 
 // TS3 Commands go here
 impl Client {
+    /// Sends a text message to all clients on all virtual servers in the TeamSpeak 3
+    /// Server instance.
+    pub async fn gm(&self, msg: &str) -> Result<()> {
+        self.send(format!("gm={}", msg)).await
+    }
+
     /// Authenticate with the given data.
     pub async fn login(&self, username: &str, password: &str) -> Result<()> {
         self.send(format!(
@@ -333,6 +339,21 @@ impl Client {
         self.send(format!("servernotifyregister event={}", event))
             .await?;
         Ok(())
+    }
+
+    /// Starts the virtual server specified with sid. Depending on your permissions,
+    /// you're able to start either your own virtual server only or all virtual
+    /// servers in the server instance.  
+    pub async fn serverstart(&self, sid: u64) -> Result<()> {
+        self.send(format!("serverstart sid={}", sid)).await
+    }
+
+    /// Stops the virtual server specified with sid. Depending on your permissions,
+    /// you're able to stop either your own virtual server only or all virtual
+    /// servers in the server instance. The reasonmsg parameter specifies a
+    /// text message that is sent to the clients before the client disconnects.
+    pub async fn serverstop(&self, sid: u64) -> Result<()> {
+        self.send(format!("serverstop sid={}", sid)).await
     }
 
     /// Switch to the virtualserver (voice) with the given server id
