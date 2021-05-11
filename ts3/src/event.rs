@@ -2,10 +2,9 @@
 #[allow(unused_imports)]
 use crate as ts3;
 
-use crate::client::{Client, RawResp};
-use crate::{Decode, Error, ParseError};
+use crate::client::Client;
+use crate::{Decode, ParseError};
 use async_trait::async_trait;
-use std::convert::From;
 use std::str::FromStr;
 use tokio::task;
 
@@ -57,7 +56,7 @@ impl Client {
             b"notifychanneldescriptionchanged" => {
                 task::spawn(async move {
                     handler
-                        .channeldescriptionchanged(c, RawResp::decode(&buf).unwrap())
+                        .channeldescriptionchanged(c, ChannelDescriptionChanged::decode(&buf).unwrap())
                         .await;
                 });
                 true
@@ -65,7 +64,7 @@ impl Client {
             b"notifychannelpasswordchanged" => {
                 task::spawn(async move {
                     handler
-                        .channelpasswordchanged(c, RawResp::decode(&buf).unwrap())
+                        .channelpasswordchanged(c, ChannelPasswordChanged::decode(&buf).unwrap())
                         .await;
                 });
                 true
@@ -73,7 +72,7 @@ impl Client {
             b"notifychannelmoved" => {
                 task::spawn(async move {
                     handler
-                        .channelmoved(c, RawResp::decode(&buf).unwrap())
+                        .channelmoved(c, ChannelMoved::decode(&buf).unwrap())
                         .await;
                 });
                 true
@@ -81,7 +80,7 @@ impl Client {
             b"notifychanneledited" => {
                 task::spawn(async move {
                     handler
-                        .channeledited(c, RawResp::decode(&buf).unwrap())
+                        .channeledited(c, ChannelEdited::decode(&buf).unwrap())
                         .await;
                 });
                 true
@@ -89,7 +88,7 @@ impl Client {
             b"notifychannelcreated" => {
                 task::spawn(async move {
                     handler
-                        .channelcreated(c, RawResp::decode(&buf).unwrap())
+                        .channelcreated(c, ChannelCreated::decode(&buf).unwrap())
                         .await;
                 });
                 true
@@ -97,14 +96,14 @@ impl Client {
             b"notifychanneldeleted" => {
                 task::spawn(async move {
                     handler
-                        .channeldeleted(c, RawResp::decode(&buf).unwrap())
+                        .channeldeleted(c, ChannelDeleted::decode(&buf).unwrap())
                         .await;
                 });
                 true
             }
             b"notifyclientmoved" => {
                 task::spawn(async move {
-                    handler.clientmoved(c, RawResp::decode(&buf).unwrap()).await;
+                    handler.clientmoved(c, ClientMoved::decode(&buf).unwrap()).await;
                 });
                 true
             }
@@ -118,7 +117,7 @@ impl Client {
             }
             b"notifytokenused" => {
                 task::spawn(async move {
-                    handler.tokenused(c, RawResp::decode(&buf).unwrap()).await;
+                    handler.tokenused(c, TokenUsed::decode(&buf).unwrap()).await;
                 });
                 true
             }
@@ -134,15 +133,83 @@ pub trait EventHandler: Send + Sync {
     async fn cliententerview(&self, _client: Client, _event: ClientEnterView) {}
     async fn clientleftview(&self, _client: Client, _event: ClientLeftView) {}
     async fn serveredited(&self, _client: Client, _event: ServerEdited) {}
-    async fn channeldescriptionchanged(&self, _client: Client, _event: RawResp) {}
-    async fn channelpasswordchanged(&self, _client: Client, _event: RawResp) {}
-    async fn channelmoved(&self, _client: Client, _event: RawResp) {}
-    async fn channeledited(&self, _client: Client, _event: RawResp) {}
-    async fn channelcreated(&self, _client: Client, _event: RawResp) {}
-    async fn channeldeleted(&self, _client: Client, _event: RawResp) {}
-    async fn clientmoved(&self, _client: Client, _event: RawResp) {}
+    async fn channeldescriptionchanged(&self, _client: Client, _event: ChannelDescriptionChanged) {}
+    async fn channelpasswordchanged(&self, _client: Client, _event: ChannelPasswordChanged) {}
+    async fn channelmoved(&self, _client: Client, _event: ChannelMoved) {}
+    async fn channeledited(&self, _client: Client, _event: ChannelEdited) {}
+    async fn channelcreated(&self, _client: Client, _event: ChannelCreated) {}
+    async fn channeldeleted(&self, _client: Client, _event: ChannelDeleted) {}
+    async fn clientmoved(&self, _client: Client, _event: ClientMoved) {}
     async fn textmessage(&self, _client: Client, _event: TextMessage) {}
-    async fn tokenused(&self, _client: Client, _event: RawResp) {}
+    async fn tokenused(&self, _client: Client, _event: TokenUsed) {}
+}
+
+/// Defines a reason why an event happened. Used in multiple event types.
+#[derive(Debug)]
+pub enum ReasonID {
+    /// Switched channel themselves or joined server
+    SwitchChannel = 0,
+    // Moved by another client or channel
+    Moved,
+    // Left server because of timeout (disconnect)
+    Timeout,
+    // Kicked from channel
+    ChannelKick,
+    // Kicked from server
+    ServerKick,
+    // Banned from server
+    Ban,
+    // Left server themselves
+    ServerLeave,
+    // Edited channel or server
+    Edited,
+    // Left server due shutdown
+    ServerShutdown,
+}
+
+impl Decode<ReasonID> for ReasonID {
+    type Err = <u8 as Decode<u8>>::Err;
+
+    fn decode(buf: &[u8]) -> Result<ReasonID, Self::Err> {
+        use ReasonID::*;
+        Ok(match u8::decode(buf)? {
+            0 => SwitchChannel,
+            1 => Moved,
+            2 => Timeout,
+            3 => ChannelKick,
+            4 => ServerKick,
+            5 => Ban,
+            6 => ServerLeave,
+            7 => Edited,
+            8 => ServerShutdown,
+            n => panic!("Unexpected Reasonid {}", n),
+        })
+    }
+}
+
+impl Default for ReasonID {
+    fn default() -> ReasonID {
+        ReasonID::SwitchChannel
+    }
+}
+
+impl FromStr for ReasonID {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<ReasonID, Self::Err> {
+        match s {
+            "0" => Ok(ReasonID::SwitchChannel),
+            "1" => Ok(ReasonID::Moved),
+            "3" => Ok(ReasonID::Timeout),
+            "4" => Ok(ReasonID::ChannelKick),
+            "5" => Ok(ReasonID::ServerKick),
+            "6" => Ok(ReasonID::Ban),
+            "8" => Ok(ReasonID::ServerLeave),
+            "10" => Ok(ReasonID::Edited),
+            "11" => Ok(ReasonID::ServerShutdown),
+            _ => Err(ParseError::InvalidEnum),
+        }
+    }
 }
 
 /// Data for a `cliententerview` event.
@@ -219,75 +286,119 @@ pub struct ServerEdited {
     pub virtualserver_channel_temp_delete_delay_default: u64,
 }
 
-/// Defines a reason why an event happened. Used in multiple event types.
-#[derive(Debug)]
-pub enum ReasonID {
-    /// Switched channel themselves or joined server
-    SwitchChannel = 0,
-    // Moved by another client or channel
-    Moved,
-    // Left server because of timeout (disconnect)
-    Timeout,
-    // Kicked from channel
-    ChannelKick,
-    // Kicked from server
-    ServerKick,
-    // Banned from server
-    Ban,
-    // Left server themselves
-    ServerLeave,
-    // Edited channel or server
-    Edited,
-    // Left server due shutdown
-    ServerShutdown,
+/// Data for a `channeldescriptionchanged` event.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelDescriptionChanged {
+    pub cid: u64,
 }
 
-impl Decode<ReasonID> for ReasonID {
-    type Err = <u8 as Decode<u8>>::Err;
-
-    fn decode(buf: &[u8]) -> Result<ReasonID, Self::Err> {
-        use ReasonID::*;
-        Ok(match u8::decode(buf)? {
-            0 => SwitchChannel,
-            1 => Moved,
-            2 => Timeout,
-            3 => ChannelKick,
-            4 => ServerKick,
-            5 => Ban,
-            6 => ServerLeave,
-            7 => Edited,
-            8 => ServerShutdown,
-            n => panic!("Unexpected Reasonid {}", n),
-        })
-    }
+/// Data for a `channelpasswordchanged` event.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelPasswordChanged {
+    pub cid: u64,
 }
 
-impl Default for ReasonID {
-    fn default() -> ReasonID {
-        ReasonID::SwitchChannel
-    }
+/// Data for a `channelmoved` event.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelMoved {
+    pub cid: u64,
+    pub cpid: u64,
+    pub order: u64,
+    pub reasonid: ReasonID,
+    pub invokerid: u64,
+    pub invokername: String,
+    pub invokeruid: String,
 }
 
-impl FromStr for ReasonID {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<ReasonID, Self::Err> {
-        match s {
-            "0" => Ok(ReasonID::SwitchChannel),
-            "1" => Ok(ReasonID::Moved),
-            "3" => Ok(ReasonID::Timeout),
-            "4" => Ok(ReasonID::ChannelKick),
-            "5" => Ok(ReasonID::ServerKick),
-            "6" => Ok(ReasonID::Ban),
-            "8" => Ok(ReasonID::ServerLeave),
-            "10" => Ok(ReasonID::Edited),
-            "11" => Ok(ReasonID::ServerShutdown),
-            _ => Err(ParseError::InvalidEnum),
-        }
-    }
+/// Data for a `channeledited` event. The fields `cid`, `reasonid`,
+/// `invokerid`, `invokername` and `invokeruid` are always included.
+/// All fields prefixed channel_... are only included if the value of
+/// the channel was changed.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelEdited {
+    pub cid: u64,
+    pub reasonid: u64,
+    pub invokerid: u64,
+    pub invokername: String,
+    pub invokeruid: String,
+    pub channel_name: String,
+    pub channel_topic: String,
+    // 4 for Opus Voice, 5 for Opus Music
+    pub channel_codec: u8,
+    pub channel_codec_quality: u8,
+    pub channel_maxclients: u16,
+    pub channel_maxfamilyclients: u16,
+    pub channel_order: u64,
+    pub channel_flag_permanent: bool,
+    pub channel_flag_semi_permanent: bool,
+    pub channel_flag_default: bool,
+    pub channel_flag_password: String,
+    pub channel_codec_latency_factor: u64,
+    pub channel_codec_is_unencrypted: bool,
+    pub channel_delete_delay: u32,
+    pub channel_flag_maxclients_unlimited: bool,
+    pub channel_flag_maxfamilyclients_unlimited: bool,
+    pub channel_flag_maxfamilyclients_inherited: bool,
+    pub channel_needed_talk_power: u32,
+    pub channel_name_phonetic: String,
+    pub channel_icon_id: u64,
 }
 
-/// Returned from a "textmessage" event
+/// Data for a `channelcreated` event.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelCreated {
+    pub cid: u64,
+    pub cpid: u64,
+    pub channel_name: String,
+    pub channel_topic: String,
+    // 4 for Opus Voice, 5 for Opus Music
+    pub channel_codec: u8,
+    pub channel_codec_quality: u8,
+    pub channel_maxclients: u16,
+    pub channel_maxfamilyclients: u16,
+    pub channel_order: u64,
+    pub channel_flag_permanent: bool,
+    pub channel_flag_semi_permanent: bool,
+    pub channel_flag_default: bool,
+    pub channel_flag_password: bool,
+    pub channel_codec_latency_factor: u64,
+    pub channel_codec_is_unencrypted: bool,
+    pub channel_delete_delay: u32,
+    pub channel_flag_maxclients_unlimited: bool,
+    pub channel_flag_maxfamilyclients_unlimited: bool,
+    pub channel_flag_maxfamilyclients_inherited: bool,
+    pub channel_needed_talk_power: u32,
+    pub channel_name_phonetic: String,
+    pub channel_icon_id: u64,
+    pub invokerid: u64,
+    pub invokername: String,
+    pub invokeruid: String,
+}
+
+/// Data for a `channeldeleted` event.
+#[derive(Debug, Decode, Default)]
+pub struct ChannelDeleted {
+    /// 0 if deleted by the server after exceeding the channel_delete_delay.
+    pub invokerid: u64,
+    /// "Server" if deleted by the server after exceeding the channel_delete_delay.
+    pub invokername: String,
+    /// Empty if deleted by the server after exceeding the channel_delete_delay.
+    pub invokeruid: String,
+    pub cid: u64,
+}
+
+/// Data for a `clientmoved` event.
+#[derive(Debug, Decode, Default)]
+pub struct ClientMoved {
+    pub ctid: u64,
+    pub reasonid: ReasonID,
+    pub invokerid: u64,
+    pub invokername: String,
+    pub invokeruid: String,
+    pub clid: u64,
+}
+
+/// Data for a `textmessage` event.
 #[derive(Debug, Decode, Default)]
 pub struct TextMessage {
     pub targetmode: usize,
@@ -298,17 +409,18 @@ pub struct TextMessage {
     pub invokeruid: String,
 }
 
-impl From<RawResp> for TextMessage {
-    fn from(raw: RawResp) -> TextMessage {
-        TextMessage {
-            targetmode: get_field(&raw, "targetmod"),
-            msg: get_field(&raw, "msg"),
-            target: get_field(&raw, "target"),
-            invokerid: get_field(&raw, "invokerid"),
-            invokername: get_field(&raw, "invokername"),
-            invokeruid: get_field(&raw, "invokeruid"),
-        }
-    }
+/// Data for a `tokenused` event.
+#[derive(Debug, Decode, Default)]
+pub struct TokenUsed {
+    pub clid: u64,
+    pub cldbid: u64,
+    pub cluid: String,
+    pub token: String,
+    pub tokencustomset: String,
+    /// GroupID assigned by the token.
+    pub token1: u64,
+    /// ChannelID for the token, 0 if Server Group.
+    pub token2: u64,
 }
 
 // Empty default impl for EventHandler
@@ -316,22 +428,3 @@ impl From<RawResp> for TextMessage {
 pub(crate) struct Handler;
 
 impl EventHandler for Handler {}
-
-fn get_field<T>(raw: &RawResp, name: &str) -> T
-where
-    T: FromStr + Default,
-{
-    match raw.items.get(0) {
-        Some(val) => match val.get(name) {
-            Some(val) => match val {
-                Some(val) => match T::from_str(&val) {
-                    Ok(val) => val,
-                    Err(_) => T::default(),
-                },
-                None => T::default(),
-            },
-            None => T::default(),
-        },
-        None => T::default(),
-    }
-}
