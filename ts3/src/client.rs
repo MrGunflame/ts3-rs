@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use crate as ts3;
 
-use crate::event::{self, EventHandler, Handler};
+use crate::event::{EventHandler, Handler};
 use crate::{Decode, Error};
 use bytes::Bytes;
 use std::collections::HashMap;
@@ -482,21 +482,6 @@ pub struct Version {
 #[derive(Clone, Debug)]
 pub struct RawResp {
     pub items: Vec<HashMap<String, Option<String>>>,
-}
-
-impl RawResp {
-    fn new() -> RawResp {
-        RawResp { items: Vec::new() }
-    }
-
-    // Returns whether the decoded response is the server error response
-    // This is true when a key named "error" exists in the map
-    fn is_error(&self) -> bool {
-        match self.items.get(0) {
-            Some(map) => map.contains_key("error"),
-            None => false,
-        }
-    }
 }
 
 impl From<&[u8]> for RawResp {
