@@ -224,6 +224,43 @@ impl Client {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum APIKeyScope {
+    Manage,
+    Write,
+    Read,
+}
+
+impl Default for APIKeyScope {
+    fn default() -> APIKeyScope {
+        Self::Manage
+    }
+}
+
+impl Display for APIKeyScope {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        use APIKeyScope::*;
+        write!(f, "{}", match self {
+            Manage => "manage",
+            Write => "writer",
+            Read => "read",
+        })
+    }
+}
+
+impl Decode<APIKeyScope> for APIKeyScope {
+    type Err = Error;
+
+    fn decode(buf: &[u8]) -> Result<APIKeyScope> {
+        Ok(match from_utf8(buf).unwrap() {
+            "manage" => Self::Manage,
+            "write" => Self::Write,
+            "read" => Self::Read,
+            s => panic!("Unexpected enum variant for APIKeyScope: {}", s)
+        })
+    }
+}
+
 pub enum ServerNotifyRegister {
     Server,
     Channel(usize),
@@ -272,6 +309,46 @@ impl Display for TextMessageTarget {
 
 // TS3 Commands go here
 impl Client {
+    /// Creates a new apikey using the specified scope, for the invoking user. The default
+    /// lifetime of a token is 14 days, a zero lifetime means no expiration. It is possible
+    ///  to create apikeys for other users using `b_virtualserver_apikey_manage.`
+    pub async fn apikeyadd(&self, scope: APIKeyScope, lifetime: Option<u64>, cldbid: Option<u64>) -> Result<APIKey> {
+        self.send(format!("apikeyadd scope={} {} {}", scope, match lifetime {
+            None => "".to_owned(),
+            Some(lifetime) => format!("lifetime={}", lifetime)
+        }, match cldbid {
+            None => "".to_owned(),
+            Some(cldbid) => format!("cldbid={}", cldbid)
+        })).await
+    }
+
+    /// Delete an apikey. Any apikey owned by the current user can always be deleted. Deleting
+    /// apikeys from another user requires `b_virtualserver_apikey_manage`.
+    pub async fn apikeydel(&self, id: u64) -> Result<()> {
+        self.send(format!("apikeydel id={}", id)).await
+    }
+
+    /// Lists all apikeys owned by the user, or of all users using `cldbid`=`(0, true).` Usage
+    /// of `cldbid`=... requires `b_virtualserver_apikey_manage`.
+    pub async fn apikeylist(&self, cldbid: Option<(u64, bool)>, start: Option<u64>, duration: Option<u64>, count: bool) -> Result<Vec<APIKey>> {
+        self.send(format!("apikeylist {} {} {} {}", match cldbid {
+            None => "".to_owned(),
+            Some((cldbid, all)) => format!("cldbid={}", match all {
+                true => "*".to_owned(),
+                false => cldbid.to_string(),
+            })
+        }, match start {
+            None => "".to_owned(),
+            Some(start) => format!("start={}", start),
+        }, match duration {
+            None => "".to_owned(),
+            Some(duration) => format!("duration={}", duration),
+        }, match count {
+            true => "-count",
+            false => "",
+        })).await
+    }
+
     /// Sends a text message to all clients on all virtual servers in the TeamSpeak 3
     /// Server instance.
     pub async fn gm(&self, msg: &str) -> Result<()> {
@@ -377,6 +454,17 @@ impl Client {
     pub async fn whoami(&self) -> Result<RawResp> {
         self.send("whoami".to_owned()).await
     }
+}
+
+/// An API Key returned from [`apikeyadd`].
+#[derive(Debug, Decode, Default)]
+pub struct APIKey {
+    pub apikey: String,
+    pub id: u64,
+    pub sid: u64,
+    pub cldbid: u64,
+    pub scope: APIKeyScope,
+    pub time_left: u64,
 }
 
 /// Data returned from the `version` command.
