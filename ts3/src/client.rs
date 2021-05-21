@@ -3,7 +3,7 @@
 use crate as ts3;
 
 use crate::event::{EventHandler, Handler};
-use crate::{Decode, Error};
+use crate::{Decode, Error, BoxError};
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::convert::From;
@@ -249,9 +249,7 @@ impl Display for APIKeyScope {
 }
 
 impl Decode<APIKeyScope> for APIKeyScope {
-    type Err = Error;
-
-    fn decode(buf: &[u8]) -> Result<APIKeyScope> {
+    fn decode(buf: &[u8]) -> result::Result<APIKeyScope, BoxError> {
         Ok(match from_utf8(buf).unwrap() {
             "manage" => Self::Manage,
             "write" => Self::Write,
@@ -521,9 +519,7 @@ impl From<&[u8]> for RawResp {
 }
 
 impl Decode<RawResp> for RawResp {
-    type Err = ();
-
-    fn decode(buf: &[u8]) -> result::Result<Self, Self::Err> {
+    fn decode(buf: &[u8]) -> result::Result<Self, BoxError> {
         Ok(buf.into())
     }
 }
