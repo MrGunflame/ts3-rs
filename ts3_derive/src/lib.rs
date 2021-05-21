@@ -12,9 +12,7 @@ pub fn decode_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = quote! {
         impl ts3::Decode<#name> for #name {
-            type Err = ts3::Error;
-
-            fn decode(buf: &[u8]) -> std::result::Result<#name, ts3::Error> {
+            fn decode(buf: &[u8]) -> std::result::Result<#name, std::boxed::Box<dyn std::error::Error + Send + Sync>> {
                 let mut st = #name::default();
 
                 for s in buf.split(|c| *c == b' ') {

@@ -1,6 +1,6 @@
 [package]
 name = "ts3_derive"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["MrGunflame <mrgunflame@protonmail.com>"]
 edition = "2018"
 description = "Derive macro for ts3 crate"
