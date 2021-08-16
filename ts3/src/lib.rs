@@ -20,18 +20,17 @@
 
 pub mod client;
 pub mod event;
-mod macros;
 
 pub use client::{Client, RawResp};
 pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
 use std::convert::TryFrom;
+use std::error;
 use std::fmt::Debug;
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::str::{from_utf8, FromStr};
-use std::error;
 
 pub enum ParseError {
     InvalidEnum,
@@ -42,7 +41,10 @@ type BoxError = Box<dyn error::Error + Sync + Send>;
 #[derive(Debug)]
 pub enum Error {
     /// Error returned from the ts3 interface. id of 0 indicates no error.
-    TS3 { id: u16, msg: String },
+    TS3 {
+        id: u16,
+        msg: String,
+    },
     /// Io error from the underlying tcp stream.
     Io(io::Error),
     /// Error occured while decoding the server response.
@@ -298,7 +300,7 @@ impl Decode<Error> for Error {
                     match *key {
                         b"id" => {
                             id = u16::decode(val)?;
-                        },
+                        }
                         b"msg" => {
                             msg = String::decode(val)?;
                         }
@@ -314,13 +316,16 @@ impl Decode<Error> for Error {
 }
 
 mod tests {
-    use std::str::FromStr;
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_vec_decode() {
         let buf = b"test|test2";
-        assert_eq!(Vec::<String>::decode(buf).unwrap(), vec!["test".to_owned(), "test2".to_owned()]);
+        assert_eq!(
+            Vec::<String>::decode(buf).unwrap(),
+            vec!["test".to_owned(), "test2".to_owned()]
+        );
     }
 
     #[test]

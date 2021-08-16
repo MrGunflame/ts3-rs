@@ -3,7 +3,7 @@
 use crate as ts3;
 
 use crate::event::{EventHandler, Handler};
-use crate::{Decode, Error, BoxError};
+use crate::{BoxError, Decode, Error};
 use bytes::Bytes;
 use std::collections::HashMap;
 use std::convert::From;
@@ -240,11 +240,15 @@ impl Default for APIKeyScope {
 impl Display for APIKeyScope {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         use APIKeyScope::*;
-        write!(f, "{}", match self {
-            Manage => "manage",
-            Write => "writer",
-            Read => "read",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Manage => "manage",
+                Write => "writer",
+                Read => "read",
+            }
+        )
     }
 }
 
@@ -254,7 +258,7 @@ impl Decode<APIKeyScope> for APIKeyScope {
             "manage" => Self::Manage,
             "write" => Self::Write,
             "read" => Self::Read,
-            s => panic!("Unexpected enum variant for APIKeyScope: {}", s)
+            s => panic!("Unexpected enum variant for APIKeyScope: {}", s),
         })
     }
 }
@@ -310,14 +314,25 @@ impl Client {
     /// Creates a new apikey using the specified scope, for the invoking user. The default
     /// lifetime of a token is 14 days, a zero lifetime means no expiration. It is possible
     ///  to create apikeys for other users using `b_virtualserver_apikey_manage.`
-    pub async fn apikeyadd(&self, scope: APIKeyScope, lifetime: Option<u64>, cldbid: Option<u64>) -> Result<APIKey> {
-        self.send(format!("apikeyadd scope={} {} {}", scope, match lifetime {
-            None => "".to_owned(),
-            Some(lifetime) => format!("lifetime={}", lifetime)
-        }, match cldbid {
-            None => "".to_owned(),
-            Some(cldbid) => format!("cldbid={}", cldbid)
-        })).await
+    pub async fn apikeyadd(
+        &self,
+        scope: APIKeyScope,
+        lifetime: Option<u64>,
+        cldbid: Option<u64>,
+    ) -> Result<APIKey> {
+        self.send(format!(
+            "apikeyadd scope={} {} {}",
+            scope,
+            match lifetime {
+                None => "".to_owned(),
+                Some(lifetime) => format!("lifetime={}", lifetime),
+            },
+            match cldbid {
+                None => "".to_owned(),
+                Some(cldbid) => format!("cldbid={}", cldbid),
+            }
+        ))
+        .await
     }
 
     /// Delete an apikey. Any apikey owned by the current user can always be deleted. Deleting
@@ -328,23 +343,39 @@ impl Client {
 
     /// Lists all apikeys owned by the user, or of all users using `cldbid`=`(0, true).` Usage
     /// of `cldbid`=... requires `b_virtualserver_apikey_manage`.
-    pub async fn apikeylist(&self, cldbid: Option<(u64, bool)>, start: Option<u64>, duration: Option<u64>, count: bool) -> Result<Vec<APIKey>> {
-        self.send(format!("apikeylist {} {} {} {}", match cldbid {
-            None => "".to_owned(),
-            Some((cldbid, all)) => format!("cldbid={}", match all {
-                true => "*".to_owned(),
-                false => cldbid.to_string(),
-            })
-        }, match start {
-            None => "".to_owned(),
-            Some(start) => format!("start={}", start),
-        }, match duration {
-            None => "".to_owned(),
-            Some(duration) => format!("duration={}", duration),
-        }, match count {
-            true => "-count",
-            false => "",
-        })).await
+    pub async fn apikeylist(
+        &self,
+        cldbid: Option<(u64, bool)>,
+        start: Option<u64>,
+        duration: Option<u64>,
+        count: bool,
+    ) -> Result<Vec<APIKey>> {
+        self.send(format!(
+            "apikeylist {} {} {} {}",
+            match cldbid {
+                None => "".to_owned(),
+                Some((cldbid, all)) => format!(
+                    "cldbid={}",
+                    match all {
+                        true => "*".to_owned(),
+                        false => cldbid.to_string(),
+                    }
+                ),
+            },
+            match start {
+                None => "".to_owned(),
+                Some(start) => format!("start={}", start),
+            },
+            match duration {
+                None => "".to_owned(),
+                Some(duration) => format!("duration={}", duration),
+            },
+            match count {
+                true => "-count",
+                false => "",
+            }
+        ))
+        .await
     }
 
     /// Sends a text message to all clients on all virtual servers in the TeamSpeak 3

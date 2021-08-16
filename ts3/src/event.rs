@@ -3,7 +3,7 @@
 use crate as ts3;
 
 use crate::client::Client;
-use crate::{Decode, ParseError, BoxError};
+use crate::{BoxError, Decode, ParseError};
 use async_trait::async_trait;
 use std::str::FromStr;
 use tokio::task;
@@ -56,7 +56,10 @@ impl Client {
             b"notifychanneldescriptionchanged" => {
                 task::spawn(async move {
                     handler
-                        .channeldescriptionchanged(c, ChannelDescriptionChanged::decode(&buf).unwrap())
+                        .channeldescriptionchanged(
+                            c,
+                            ChannelDescriptionChanged::decode(&buf).unwrap(),
+                        )
                         .await;
                 });
                 true
@@ -103,7 +106,9 @@ impl Client {
             }
             b"notifyclientmoved" => {
                 task::spawn(async move {
-                    handler.clientmoved(c, ClientMoved::decode(&buf).unwrap()).await;
+                    handler
+                        .clientmoved(c, ClientMoved::decode(&buf).unwrap())
+                        .await;
                 });
                 true
             }
