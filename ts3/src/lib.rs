@@ -28,6 +28,7 @@ pub use ts3_derive::Decode;
 use std::convert::TryFrom;
 use std::error;
 use std::fmt::Debug;
+use std::fmt::Write;
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::str::{from_utf8, FromStr};
@@ -168,6 +169,10 @@ pub trait Decode<T> {
     fn decode(buf: &[u8]) -> Result<T, BoxError>;
 }
 
+pub trait Serialize {
+    fn serialize(&self, writer: &mut String);
+}
+
 /// Implement `Decode` for `Vec` as long as `T` itself also implements `Decode`.
 impl<T> Decode<Vec<T>> for Vec<T>
 where
@@ -184,6 +189,17 @@ where
     }
 }
 
+/// Implements `Serialize` for types that can be directly written as they are formatted.
+macro_rules! impl_serialize {
+    ($t:ty) => {
+        impl crate::Serialize for $t {
+            fn serialize(&self, writer: &mut ::std::string::String) {
+                write!(writer, "{}", self).unwrap();
+            }
+        }
+    };
+}
+
 /// The `impl_decode` macro implements `Decode` for any type that implements `FromStr`.
 macro_rules! impl_decode {
     ($t:ty) => {
@@ -195,10 +211,48 @@ macro_rules! impl_decode {
     };
 }
 
+pub struct CommandBuilder(String);
+
+impl CommandBuilder {
+    pub fn new<T>(name: T) -> Self
+    where
+        T: ToString,
+    {
+        Self(name.to_string())
+    }
+
+    pub fn arg<T, S>(mut self, key: T, value: S) -> Self
+    where
+        T: AsRef<str>,
+        S: Serialize,
+    {
+        self.0.write_str(key.as_ref()).unwrap();
+        self.0.write_char('=').unwrap();
+        value.serialize(&mut self.0);
+        self
+    }
+
+    pub fn arg_opt<T, S>(self, key: T, value: Option<S>) -> Self
+    where
+        T: AsRef<str>,
+        S: Serialize,
+    {
+        match value {
+            Some(value) => self.arg(key, value),
+            None => self,
+        }
+    }
+
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
 /// Implement `Decode` for `()`. Calling `()::decode(&[u8])` will never fail
 /// and can always be unwrapped safely.
 impl Decode<()> for () {
     fn decode(_: &[u8]) -> Result<(), BoxError> {
+        // command!("");
         Ok(())
     }
 }
@@ -246,6 +300,41 @@ impl Decode<String> for String {
     }
 }
 
+impl Serialize for &str {
+    fn serialize(&self, writer: &mut String) {
+        for c in self.chars() {
+            match c {
+                '\\' => writer.write_str("\\\\").unwrap(),
+                '/' => writer.write_str("\\/").unwrap(),
+                ' ' => writer.write_str("\\s").unwrap(),
+                '|' => writer.write_str("\\p").unwrap(),
+                c if c == 7u8 as char => writer.write_str("\\a").unwrap(),
+                c if c == 8u8 as char => writer.write_str("\\b").unwrap(),
+                c if c == 12u8 as char => writer.write_str("\\f").unwrap(),
+                c if c == 10u8 as char => writer.write_str("\\n").unwrap(),
+                c if c == 13u8 as char => writer.write_str("\\r").unwrap(),
+                c if c == 9u8 as char => writer.write_str("\\t").unwrap(),
+                c if c == 11u8 as char => writer.write_str("\\v").unwrap(),
+                _ => writer.write_char(c).unwrap(),
+            }
+        }
+    }
+}
+
+impl Serialize for bool {
+    fn serialize(&self, writer: &mut String) {
+        write!(
+            writer,
+            "{}",
+            match self {
+                false => b'0',
+                true => b'1',
+            }
+        )
+        .unwrap();
+    }
+}
+
 impl Decode<bool> for bool {
     fn decode(buf: &[u8]) -> Result<bool, BoxError> {
         match buf.get(0) {
@@ -273,6 +362,20 @@ impl_decode!(u16);
 impl_decode!(u32);
 impl_decode!(u64);
 impl_decode!(u128);
+
+impl_serialize!(isize);
+impl_serialize!(i8);
+impl_serialize!(i16);
+impl_serialize!(i32);
+impl_serialize!(i64);
+impl_serialize!(i128);
+
+impl_serialize!(usize);
+impl_serialize!(u8);
+impl_serialize!(u16);
+impl_serialize!(u32);
+impl_serialize!(u64);
+impl_serialize!(u128);
 
 impl Decode<Error> for Error {
     fn decode(buf: &[u8]) -> Result<Error, BoxError> {
