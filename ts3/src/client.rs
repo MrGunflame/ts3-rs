@@ -2,22 +2,27 @@
 #[allow(unused_imports)]
 use crate as ts3;
 
-use crate::event::{EventHandler, Handler};
-use crate::{BoxError, Decode, Error};
+use crate::{
+    event::{EventHandler, Handler},
+    BoxError, CommandBuilder, Decode, Error, Serialize,
+};
 use bytes::Bytes;
-use std::collections::HashMap;
-use std::convert::From;
-use std::fmt::{self, Display, Formatter};
-use std::result;
-use std::str::from_utf8;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::TcpStream;
-use tokio::net::ToSocketAddrs;
-use tokio::sync::{mpsc, oneshot};
-use tokio::task::spawn;
-use tokio::time::sleep;
+use std::{
+    collections::HashMap,
+    convert::From,
+    fmt::{self, Display, Formatter, Write},
+    result,
+    str::from_utf8,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::{TcpStream, ToSocketAddrs},
+    sync::{mpsc, oneshot},
+    task::spawn,
+    time::sleep,
+};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -294,11 +299,11 @@ pub enum TextMessageTarget {
     Server,
 }
 
-impl Display for TextMessageTarget {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+impl Serialize for TextMessageTarget {
+    fn serialize(&self, writer: &mut String) {
         use TextMessageTarget::*;
         write!(
-            f,
+            writer,
             "{}",
             match self {
                 Client(clid) => format!("1 target={}", clid),
@@ -306,6 +311,7 @@ impl Display for TextMessageTarget {
                 Server => "3".to_owned(),
             }
         )
+        .unwrap();
     }
 }
 
@@ -378,6 +384,32 @@ impl Client {
         .await
     }
 
+    /// Add a new ban rule on the selected virtual server. One of `ip`, `name`, `uid`
+    /// and `mytsid` must not be `None`.
+    pub async fn banadd(
+        &self,
+        ip: Option<&str>,
+        name: Option<&str>,
+        uid: Option<&str>,
+        mytsid: Option<&str>,
+        time: Option<u64>,
+        banreason: Option<&str>,
+        lastnickname: Option<&str>,
+    ) -> Result<()> {
+        self.send({
+            CommandBuilder::new("banadd")
+                .arg_opt("ip", ip)
+                .arg_opt("name", name)
+                .arg_opt("uid", uid)
+                .arg_opt("mytsid", mytsid)
+                .arg_opt("time", time)
+                .arg_opt("banreason", banreason)
+                .arg_opt("lastnickname", lastnickname)
+                .into_inner()
+        })
+        .await
+    }
+
     /// Sends a text message to all clients on all virtual servers in the TeamSpeak 3
     /// Server instance.
     pub async fn gm(&self, msg: &str) -> Result<()> {
@@ -386,10 +418,12 @@ impl Client {
 
     /// Authenticate with the given data.
     pub async fn login(&self, username: &str, password: &str) -> Result<()> {
-        self.send(format!(
-            "login client_login_name={} client_login_password={}",
-            username, password
-        ))
+        self.send(
+            CommandBuilder::new("login")
+                .arg("client_login_name", username)
+                .arg("client_login_password", password)
+                .into_inner(),
+        )
         .await?;
         Ok(())
     }
@@ -407,18 +441,25 @@ impl Client {
     }
 
     pub async fn sendtextmessage(&self, target: TextMessageTarget, msg: &str) -> Result<()> {
-        self.send(format!("sendtextmessage targetmode={} msg={}", target, msg))
-            .await?;
+        self.send(
+            CommandBuilder::new("sendtextmessage")
+                .arg("targetmode", target)
+                .arg("msg", msg)
+                .into_inner(),
+        )
+        .await?;
         Ok(())
     }
 
     /// Adds one or more clients to the server group specified with sgid. Please note that a
     /// client cannot be added to default groups or template groups.
     pub async fn servergroupaddclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
-        self.send(format!(
-            "servergroupaddclient sgid={} cldbid={}",
-            sgid, cldbid
-        ))
+        self.send(
+            CommandBuilder::new("servergroupaddclient")
+                .arg("sgid", sgid)
+                .arg("cldbid", cldbid)
+                .into_inner(),
+        )
         .await?;
         Ok(())
     }
@@ -426,10 +467,12 @@ impl Client {
     /// Removes one or more clients specified with cldbid from the server group specified with
     /// sgid.  
     pub async fn servergroupdelclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
-        self.send(format!(
-            "servergroupdelclient sgid={} cldbid={}",
-            sgid, cldbid
-        ))
+        self.send(
+            CommandBuilder::new("servergroupdelclient")
+                .arg("sgid", sgid)
+                .arg("cldbid", cldbid)
+                .into_inner(),
+        )
         .await?;
         Ok(())
     }
