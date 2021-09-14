@@ -25,13 +25,13 @@ pub use client::{Client, RawResp};
 pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
-use std::convert::TryFrom;
-use std::error;
-use std::fmt::Debug;
-use std::fmt::Write;
-use std::fmt::{self, Display, Formatter};
-use std::io;
-use std::str::{from_utf8, FromStr};
+use std::{
+    convert::TryFrom,
+    error,
+    fmt::{self, Debug, Display, Formatter, Write},
+    io,
+    str::{from_utf8, FromStr},
+};
 
 pub enum ParseError {
     InvalidEnum,
@@ -211,6 +211,7 @@ macro_rules! impl_decode {
     };
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct CommandBuilder(String);
 
 impl CommandBuilder {
@@ -226,6 +227,7 @@ impl CommandBuilder {
         T: AsRef<str>,
         S: Serialize,
     {
+        self.0.write_char(' ').unwrap();
         self.0.write_str(key.as_ref()).unwrap();
         self.0.write_char('=').unwrap();
         value.serialize(&mut self.0);
@@ -466,5 +468,26 @@ mod tests {
                 items: vec![1, 2, 3, 4]
             }
         );
+    }
+
+    #[test]
+    fn test_command_builder() {
+        let cmd = CommandBuilder::new("testcmd");
+        assert_eq!(cmd.clone().into_inner(), "testcmd");
+
+        let cmd = cmd.arg("hello", "world");
+        assert_eq!(cmd.clone().into_inner(), "testcmd hello=world");
+
+        let cmd = cmd.arg("test", "1234");
+        assert_eq!(cmd.clone().into_inner(), "testcmd hello=world test=1234");
+
+        let cmd = cmd.arg_opt("opt", Some("arg"));
+        assert_eq!(
+            cmd.clone().into_inner(),
+            "testcmd hello=world test=1234 opt=arg"
+        );
+
+        let cmd = cmd.arg_opt::<_, &str>("opt2", None);
+        assert_eq!(cmd.into_inner(), "testcmd hello=world test=1234 opt=arg");
     }
 }
