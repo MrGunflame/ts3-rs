@@ -2,6 +2,8 @@
 #[allow(unused_imports)]
 use crate as ts3;
 
+pub use async_trait::async_trait;
+
 use crate::{
     event::{EventHandler, Handler},
     BoxError, CommandBuilder, Decode, Error, Serialize,
@@ -528,7 +530,7 @@ impl Client {
     }
 }
 
-/// An API Key returned from [`apikeyadd`].
+/// An API Key returned from [`Client.apikeyadd`].
 #[derive(Debug, Decode, Default)]
 pub struct APIKey {
     pub apikey: String,

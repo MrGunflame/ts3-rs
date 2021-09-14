@@ -1,8 +1,11 @@
-//! # ts3
-//! A WIP ts3 query interface library
+//! # TS3
+//! A fully asynchronous library to interact with the TeamSpeak 3 Server query interface.
+//! The commands are avaliable after connecting to a TS3 Server using a [`Client`]. Commands
+//! can either be sent using the associated command or using [`Client.sent`] to send raw messages.
 //!
 //! # Examples
 //!
+//! Connect to a TS3 query interface and select a server
 //! ```rust
 //! use ts3::Client;
 //!
@@ -16,6 +19,40 @@
 //!
 //!     Ok(())
 //! }
+//! ```
+//!
+//! ```rust
+//! use ts3::{
+//!     async_trait, Client,
+//!     client::TextMessageTarget,
+//!     event::{EventHandler, ClientEnterView}
+//! };
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+//!     let client = Client::new("localhost:10011").await?;
+//!
+//!     client.use_sid(1).await?;
+//!
+//!     // Assign a new event handler.
+//!     client.set_event_handler(Handler);
+//!
+//!     tokio::signal::ctrl_c().await?;
+//! }
+//!
+//! pub struct Handler;
+//!
+//! #[async_trait]
+//! impl EventHandler for Handler {
+//!     async fn cliententerview(&self, client: Client, event: ClientEnterView) {
+//!         println!("Client {} joined!", event.client_nickname);
+//!
+//!         // Send a private message to the client using "sendtextmessage".
+//!         client.sendtextmessage(TextMessageTarget::Client(event.clid), "Hello World!")
+//!             .await.unwrap();
+//!     }
+//! }
+//!
 //! ```
 
 pub mod client;
