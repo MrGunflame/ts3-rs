@@ -11,12 +11,12 @@ pub fn decode_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expr = gen_expr(&input.data);
 
     let expanded = quote! {
-        impl ts3::Decode<#name> for #name {
-            fn decode(buf: &[u8]) -> std::result::Result<#name, std::boxed::Box<dyn std::error::Error + Send + Sync>> {
+        impl ::ts3::Decode<#name> for #name {
+            fn decode(buf: &[u8]) -> ::std::result::Result<#name, ::std::boxed::Box<dyn ::std::error::Error + ::std::marker::Send + ::std::marker::Sync>> {
                 let mut st = #name::default();
 
                 for s in buf.split(|c| *c == b' ') {
-                    let parts: Vec<&[u8]> = s.splitn(2, |c| *c == b'=').collect();
+                    let parts: ::std::vec::Vec<&[u8]> = s.splitn(2, |c| *c == b'=').collect();
 
                     match *parts.get(0).unwrap() {
                         #expr
