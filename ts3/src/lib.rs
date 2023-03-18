@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! Connect to a TS3 query interface and select a server
-//! ```rust
+//! ```no_run
 //! use ts3::Client;
 //!
 //! #[tokio::main]
@@ -21,12 +21,9 @@
 //! }
 //! ```
 //!
-//! ```rust
-//! use ts3::{
-//!     async_trait, Client,
-//!     client::TextMessageTarget,
-//!     event::{EventHandler, ClientEnterView}
-//! };
+//! ```no_run
+//! use ts3::client::{Client, async_trait, TextMessageTarget};
+//! use ts3::event::{EventHandler, ClientEnterView};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -38,6 +35,7 @@
 //!     client.set_event_handler(Handler);
 //!
 //!     tokio::signal::ctrl_c().await?;
+//!     Ok(())
 //! }
 //!
 //! pub struct Handler;
@@ -48,12 +46,14 @@
 //!         println!("Client {} joined!", event.client_nickname);
 //!
 //!         // Send a private message to the client using "sendtextmessage".
-//!         client.sendtextmessage(TextMessageTarget::Client(event.clid), "Hello World!")
+//!         client.sendtextmessage(TextMessageTarget::Client(event.clid as usize), "Hello World!")
 //!             .await.unwrap();
 //!     }
 //! }
 //!
 //! ```
+
+extern crate self as ts3;
 
 pub mod client;
 pub mod event;

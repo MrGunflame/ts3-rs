@@ -17,4 +17,4 @@ bytes = "1.0.1"
 ts3_derive = { version = "0.2.0", path = "../ts3_derive" }
 
 [dev-dependencies]
-tokio = { version = "1.0.2", features = [ "macros" ] }
+tokio = { version = "1.0.2", features = [ "macros", "rt", "rt-multi-thread", "signal" ] }
