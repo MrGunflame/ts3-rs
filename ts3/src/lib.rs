@@ -63,18 +63,17 @@ pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
 use std::{
-    convert::TryFrom,
+    convert::{Infallible, TryFrom},
     error,
     fmt::{self, Debug, Display, Formatter, Write},
     io,
-    str::{from_utf8, FromStr},
+    num::ParseIntError,
+    str::{from_utf8, FromStr, Utf8Error},
 };
 
 pub enum ParseError {
     InvalidEnum,
 }
-
-type BoxError = Box<dyn error::Error + Sync + Send>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -86,13 +85,33 @@ pub enum Error {
     /// Io error from the underlying tcp stream.
     Io(io::Error),
     /// Error occured while decoding the server response.
-    Decode(BoxError),
+    Decode(DecodeError),
+    ParseInt(ParseIntError),
+    Utf8(Utf8Error),
     SendError,
 }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(value: ParseIntError) -> Self {
+        Self::ParseInt(value)
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(value: Utf8Error) -> Self {
+        Self::Utf8(value)
+    }
+}
+
+impl From<DecodeError> for Error {
+    fn from(value: DecodeError) -> Self {
+        Self::Decode(value)
     }
 }
 
@@ -103,6 +122,8 @@ impl Display for Error {
             Self::Io(err) => write!(f, "Io Error: {}", err),
             Self::Decode(err) => write!(f, "Error decoding value: {}", err),
             Self::SendError => write!(f, "Failed to send command, channel closed"),
+            Self::ParseInt(err) => write!(f, "failed to parse integer: {}", err),
+            Self::Utf8(err) => write!(f, "invalid utf8 string: {}", err),
         }
     }
 }
@@ -202,20 +223,24 @@ where
 
 /// Any type implementing `Decode` can be directly decoded from the TS3 stream.
 /// It provides the complete buffer of the response from the stream.
-pub trait Decode<T> {
-    fn decode(buf: &[u8]) -> Result<T, BoxError>;
+pub trait Decode: Sized {
+    type Error: std::error::Error;
+
+    fn decode(buf: &[u8]) -> Result<Self, Self::Error>;
 }
 
-pub trait Serialize {
-    fn serialize(&self, writer: &mut String);
+pub trait Encode {
+    fn encode(&self, buf: &mut String);
 }
 
 /// Implement `Decode` for `Vec` as long as `T` itself also implements `Decode`.
-impl<T> Decode<Vec<T>> for Vec<T>
+impl<T> Decode for Vec<T>
 where
-    T: Decode<T>,
+    T: Decode,
 {
-    fn decode(buf: &[u8]) -> Result<Vec<T>, BoxError> {
+    type Error = <T as Decode>::Error;
+
+    fn decode(buf: &[u8]) -> Result<Self, Self::Error> {
         // Create a new vec and push all items to it.
         // Items are separated by a '|' char and no space before/after.
         let mut list = Vec::new();
@@ -229,8 +254,8 @@ where
 /// Implements `Serialize` for types that can be directly written as they are formatted.
 macro_rules! impl_serialize {
     ($t:ty) => {
-        impl crate::Serialize for $t {
-            fn serialize(&self, writer: &mut ::std::string::String) {
+        impl crate::Encode for $t {
+            fn encode(&self, writer: &mut ::std::string::String) {
                 write!(writer, "{}", self).unwrap();
             }
         }
@@ -240,8 +265,10 @@ macro_rules! impl_serialize {
 /// The `impl_decode` macro implements `Decode` for any type that implements `FromStr`.
 macro_rules! impl_decode {
     ($t:ty) => {
-        impl Decode<$t> for $t {
-            fn decode(buf: &[u8]) -> std::result::Result<$t, BoxError> {
+        impl Decode for $t {
+            type Error = Error;
+
+            fn decode(buf: &[u8]) -> std::result::Result<$t, Self::Error> {
                 Ok(from_utf8(buf)?.parse()?)
             }
         }
@@ -262,19 +289,19 @@ impl CommandBuilder {
     pub fn arg<T, S>(mut self, key: T, value: S) -> Self
     where
         T: AsRef<str>,
-        S: Serialize,
+        S: Encode,
     {
         self.0.write_char(' ').unwrap();
         self.0.write_str(key.as_ref()).unwrap();
         self.0.write_char('=').unwrap();
-        value.serialize(&mut self.0);
+        value.encode(&mut self.0);
         self
     }
 
     pub fn arg_opt<T, S>(self, key: T, value: Option<S>) -> Self
     where
         T: AsRef<str>,
-        S: Serialize,
+        S: Encode,
     {
         match value {
             Some(value) => self.arg(key, value),
@@ -289,16 +316,19 @@ impl CommandBuilder {
 
 /// Implement `Decode` for `()`. Calling `()::decode(&[u8])` will never fail
 /// and can always be unwrapped safely.
-impl Decode<()> for () {
-    fn decode(_: &[u8]) -> Result<(), BoxError> {
-        // command!("");
+impl Decode for () {
+    type Error = Infallible;
+
+    fn decode(_: &[u8]) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
 // Implement `Decode` for `String`
-impl Decode<String> for String {
-    fn decode(buf: &[u8]) -> Result<String, BoxError> {
+impl Decode for String {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> Result<String, Self::Error> {
         // Create a new string, allocating the same length as the buffer. Most
         // chars are one-byte only.
         let mut string = String::with_capacity(buf.len());
@@ -323,9 +353,9 @@ impl Decode<String> for String {
                             b'r' => string.push(13u8 as char),
                             b't' => string.push(9u8 as char),
                             b'v' => string.push(11u8 as char),
-                            _ => return Err(Box::new(DecodeError::UnexpectedByte(**c))),
+                            _ => return Err(DecodeError::UnexpectedByte(**c).into()),
                         },
-                        None => return Err(Box::new(DecodeError::UnexpectedEof)),
+                        None => return Err(DecodeError::UnexpectedEof.into()),
                     }
                     iter.next();
                 }
@@ -339,8 +369,8 @@ impl Decode<String> for String {
     }
 }
 
-impl Serialize for &str {
-    fn serialize(&self, writer: &mut String) {
+impl Encode for &str {
+    fn encode(&self, writer: &mut String) {
         for c in self.chars() {
             match c {
                 '\\' => writer.write_str("\\\\").unwrap(),
@@ -360,8 +390,8 @@ impl Serialize for &str {
     }
 }
 
-impl Serialize for bool {
-    fn serialize(&self, writer: &mut String) {
+impl Encode for bool {
+    fn encode(&self, writer: &mut String) {
         write!(
             writer,
             "{}",
@@ -374,15 +404,17 @@ impl Serialize for bool {
     }
 }
 
-impl Decode<bool> for bool {
-    fn decode(buf: &[u8]) -> Result<bool, BoxError> {
+impl Decode for bool {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> Result<bool, Self::Error> {
         match buf.get(0) {
             Some(b) => match b {
                 b'0' => Ok(true),
                 b'1' => Ok(false),
-                _ => Err(Box::new(DecodeError::UnexpectedByte(*b))),
+                _ => Err(DecodeError::UnexpectedByte(*b).into()),
             },
-            None => Err(Box::new(DecodeError::UnexpectedEof)),
+            None => Err(DecodeError::UnexpectedEof.into()),
         }
     }
 }
@@ -416,8 +448,10 @@ impl_serialize!(u32);
 impl_serialize!(u64);
 impl_serialize!(u128);
 
-impl Decode<Error> for Error {
-    fn decode(buf: &[u8]) -> Result<Error, BoxError> {
+impl Decode for Error {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> Result<Error, Self::Error> {
         let (mut id, mut msg) = (0, String::new());
 
         // Error is a key-value map separated by ' ' with only the id and msg key.
@@ -435,7 +469,7 @@ impl Decode<Error> for Error {
                     // Extract the value.
                     let val = match parts.get(1) {
                         Some(val) => val,
-                        None => return Err(Box::new(DecodeError::UnexpectedEof)),
+                        None => return Err(DecodeError::UnexpectedEof.into()),
                     };
 
                     // Match the key of the pair and assign the corresponding value.
@@ -449,7 +483,7 @@ impl Decode<Error> for Error {
                         _ => (),
                     }
                 }
-                None => return Err(Box::new(DecodeError::UnexpectedEof)),
+                None => return Err(DecodeError::UnexpectedEof.into()),
             }
         }
 

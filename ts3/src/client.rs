@@ -6,7 +6,7 @@ pub use async_trait::async_trait;
 
 use crate::{
     event::{EventHandler, Handler},
-    BoxError, CommandBuilder, Decode, Error, Serialize,
+    CommandBuilder, Decode, Encode, Error,
 };
 use bytes::Bytes;
 use std::{
@@ -209,7 +209,7 @@ impl Client {
 
     /// Send a raw command directly to the server. The response will be directly decoded
     /// into the type `T`. To get a HashMap like response, use the `RawResp` struct.
-    pub async fn send<T: Decode<T>>(&self, cmd: String) -> Result<T> {
+    pub async fn send<T: Decode>(&self, cmd: String) -> Result<T> {
         let tx = self.tx.clone();
 
         // Create a new channel for receiving the response
@@ -259,8 +259,10 @@ impl Display for APIKeyScope {
     }
 }
 
-impl Decode<APIKeyScope> for APIKeyScope {
-    fn decode(buf: &[u8]) -> result::Result<APIKeyScope, BoxError> {
+impl Decode for APIKeyScope {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> result::Result<Self, Self::Error> {
         Ok(match from_utf8(buf).unwrap() {
             "manage" => Self::Manage,
             "write" => Self::Write,
@@ -301,8 +303,8 @@ pub enum TextMessageTarget {
     Server,
 }
 
-impl Serialize for TextMessageTarget {
-    fn serialize(&self, writer: &mut String) {
+impl Encode for TextMessageTarget {
+    fn encode(&self, writer: &mut String) {
         use TextMessageTarget::*;
         write!(
             writer,
@@ -594,8 +596,10 @@ impl From<&[u8]> for RawResp {
     }
 }
 
-impl Decode<RawResp> for RawResp {
-    fn decode(buf: &[u8]) -> result::Result<Self, BoxError> {
+impl Decode for RawResp {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> result::Result<Self, Self::Error> {
         Ok(buf.into())
     }
 }

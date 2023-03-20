@@ -3,7 +3,7 @@
 use crate as ts3;
 
 use crate::client::Client;
-use crate::{BoxError, Decode, ParseError};
+use crate::{Decode, Error, ParseError};
 use async_trait::async_trait;
 use std::str::FromStr;
 use tokio::task;
@@ -172,8 +172,10 @@ pub enum ReasonID {
     ServerShutdown,
 }
 
-impl Decode<ReasonID> for ReasonID {
-    fn decode(buf: &[u8]) -> Result<ReasonID, BoxError> {
+impl Decode for ReasonID {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> Result<ReasonID, Self::Error> {
         use ReasonID::*;
         Ok(match u8::decode(buf)? {
             0 => SwitchChannel,
