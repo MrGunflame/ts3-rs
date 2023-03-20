@@ -6,7 +6,7 @@ pub use async_trait::async_trait;
 
 use crate::{
     event::{EventHandler, Handler},
-    CommandBuilder, Decode, Encode, Error,
+    CommandBuilder, Decode, Encode, Error, ErrorKind,
 };
 use bytes::Bytes;
 use std::{
@@ -30,8 +30,9 @@ pub type Result<T> = result::Result<T, Error>;
 
 impl Error {
     fn ok(&self) -> bool {
-        use Error::*;
-        match self {
+        use ErrorKind::*;
+
+        match &self.0 {
             TS3 { id, msg: _ } => *id == 0,
             _ => false,
         }
@@ -41,7 +42,7 @@ impl Error {
 // Read a error from a raw server response
 impl From<RawResp> for Error {
     fn from(mut resp: RawResp) -> Error {
-        Error::TS3 {
+        Error(ErrorKind::TS3 {
             id: resp.items[0]
                 .remove("id")
                 .unwrap()
@@ -49,7 +50,7 @@ impl From<RawResp> for Error {
                 .parse()
                 .unwrap(),
             msg: resp.items[0].remove("msg").unwrap().unwrap(),
-        }
+        })
     }
 }
 
@@ -82,7 +83,9 @@ impl Client {
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Result<Client> {
         let (tx, mut rx) = mpsc::channel::<Cmd>(32);
 
-        let stream = TcpStream::connect(addr).await?;
+        let stream = TcpStream::connect(addr)
+            .await
+            .map_err(|e| Error(e.into()))?;
 
         let (reader, mut writer) = stream.into_split();
         let mut reader = BufReader::new(reader);
@@ -158,13 +161,13 @@ impl Client {
             while let Some(cmd) = rx.recv().await {
                 // Write the command string
                 if let Err(err) = writer.write(&cmd.bytes).await {
-                    let _ = cmd.resp.send(Err(err.into()));
+                    let _ = cmd.resp.send(Err(Error(err.into())));
                     continue;
                 }
 
                 // Write a '\n' to send the command
                 if let Err(err) = writer.write(&[b'\n']).await {
-                    let _ = cmd.resp.send(Err(err.into()));
+                    let _ = cmd.resp.send(Err(Error(err.into())));
                     continue;
                 }
 
@@ -226,7 +229,7 @@ impl Client {
                 let resp = resp_rx.await;
                 Ok(T::decode(&resp.unwrap().unwrap()).unwrap())
             }
-            Err(_) => Err(Error::SendError),
+            Err(_) => Err(Error(ErrorKind::SendError)),
         }
     }
 }

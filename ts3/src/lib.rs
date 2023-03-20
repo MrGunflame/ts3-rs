@@ -71,69 +71,39 @@ use std::{
     str::{from_utf8, FromStr, Utf8Error},
 };
 
+use thiserror::Error;
+
 pub enum ParseError {
     InvalidEnum,
 }
 
-#[derive(Debug)]
-pub enum Error {
+/// An error that can occur when interacting with the TS3 query API.
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, Error)]
+enum ErrorKind {
     /// Error returned from the ts3 interface. id of 0 indicates no error.
-    TS3 {
-        id: u16,
-        msg: String,
-    },
+    #[error("TS3 error {id}: {msg}")]
+    TS3 { id: u16, msg: String },
     /// Io error from the underlying tcp stream.
-    Io(io::Error),
+    #[error("io: {0}")]
+    Io(#[from] io::Error),
     /// Error occured while decoding the server response.
-    Decode(DecodeError),
-    ParseInt(ParseIntError),
-    Utf8(Utf8Error),
+    #[error("failed to decode stream: {0}")]
+    Decode(#[from] DecodeError),
+    #[error("failed to parse integer: {0}")]
+    ParseInt(#[from] ParseIntError),
+    #[error("recevied invalid utf8: {0}")]
+    Utf8(#[from] Utf8Error),
+    #[error("send error")]
     SendError,
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl From<ParseIntError> for Error {
-    fn from(value: ParseIntError) -> Self {
-        Self::ParseInt(value)
-    }
-}
-
-impl From<Utf8Error> for Error {
-    fn from(value: Utf8Error) -> Self {
-        Self::Utf8(value)
-    }
-}
-
-impl From<DecodeError> for Error {
-    fn from(value: DecodeError) -> Self {
-        Self::Decode(value)
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::TS3 { id, msg } => write!(f, "TS3 Error {}: {}", id, msg),
-            Self::Io(err) => write!(f, "Io Error: {}", err),
-            Self::Decode(err) => write!(f, "Error decoding value: {}", err),
-            Self::SendError => write!(f, "Failed to send command, channel closed"),
-            Self::ParseInt(err) => write!(f, "failed to parse integer: {}", err),
-            Self::Utf8(err) => write!(f, "invalid utf8 string: {}", err),
-        }
-    }
-}
-
-impl error::Error for Error {}
-
 #[derive(Debug)]
-pub enum DecodeError {
+enum DecodeError {
     UnexpectedEof,
-    UnexpectedChar(char),
     UnexpectedByte(u8),
 }
 
@@ -141,7 +111,6 @@ impl Display for DecodeError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::UnexpectedEof => write!(f, "Unexpected end while decoding"),
-            Self::UnexpectedChar(c) => write!(f, "Unexpected char decoding: {}", c),
             Self::UnexpectedByte(b) => write!(f, "Unexpected byte decoding: {}", b),
         }
     }
@@ -269,7 +238,10 @@ macro_rules! impl_decode {
             type Error = Error;
 
             fn decode(buf: &[u8]) -> std::result::Result<$t, Self::Error> {
-                Ok(from_utf8(buf)?.parse()?)
+                Ok(from_utf8(buf)
+                    .map_err(|e| Error(ErrorKind::Utf8(e)))?
+                    .parse()
+                    .map_err(|e| Error(ErrorKind::ParseInt(e)))?)
             }
         }
     };
@@ -353,9 +325,15 @@ impl Decode for String {
                             b'r' => string.push(13u8 as char),
                             b't' => string.push(9u8 as char),
                             b'v' => string.push(11u8 as char),
-                            _ => return Err(DecodeError::UnexpectedByte(**c).into()),
+                            _ => {
+                                return Err(Error(ErrorKind::Decode(DecodeError::UnexpectedByte(
+                                    **c,
+                                ))))
+                            }
                         },
-                        None => return Err(DecodeError::UnexpectedEof.into()),
+                        None => {
+                            return Err(Error(ErrorKind::Decode(DecodeError::UnexpectedEof.into())))
+                        }
                     }
                     iter.next();
                 }
@@ -412,9 +390,11 @@ impl Decode for bool {
             Some(b) => match b {
                 b'0' => Ok(true),
                 b'1' => Ok(false),
-                _ => Err(DecodeError::UnexpectedByte(*b).into()),
+                _ => Err(Error(ErrorKind::Decode(
+                    DecodeError::UnexpectedByte(*b).into(),
+                ))),
             },
-            None => Err(DecodeError::UnexpectedEof.into()),
+            None => Err(Error(ErrorKind::Decode(DecodeError::UnexpectedEof.into()))),
         }
     }
 }
@@ -469,7 +449,7 @@ impl Decode for Error {
                     // Extract the value.
                     let val = match parts.get(1) {
                         Some(val) => val,
-                        None => return Err(DecodeError::UnexpectedEof.into()),
+                        None => return Err(Error(ErrorKind::Decode(DecodeError::UnexpectedEof))),
                     };
 
                     // Match the key of the pair and assign the corresponding value.
@@ -483,17 +463,19 @@ impl Decode for Error {
                         _ => (),
                     }
                 }
-                None => return Err(DecodeError::UnexpectedEof.into()),
+                None => return Err(Error(ErrorKind::Decode(DecodeError::UnexpectedEof))),
             }
         }
 
-        Ok(Error::TS3 { id, msg })
+        Ok(Error(ErrorKind::TS3 { id, msg }))
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
     use std::str::FromStr;
+
+    use super::{CommandBuilder, Decode, Error, ErrorKind, List};
 
     #[test]
     fn test_vec_decode() {
@@ -513,8 +495,8 @@ mod tests {
     #[test]
     fn test_error_decode() {
         let buf = b"error id=0 msg=ok";
-        let (id, msg) = match Error::decode(buf).unwrap() {
-            Error::TS3 { id, msg } => (id, msg),
+        let (id, msg) = match Error::decode(buf).unwrap().0 {
+            ErrorKind::TS3 { id, msg } => (id, msg),
             _ => unreachable!(),
         };
         assert!(id == 0 && msg == "ok".to_owned());

@@ -15,6 +15,7 @@ tokio = { version = "1.0.2", features = [ "rt", "rt-multi-thread", "io-util", "n
 async-trait = "0.1.42"
 bytes = "1.0.1"
 ts3_derive = { version = "0.2.0", path = "../ts3_derive" }
+thiserror = "1.0.40"
 
 [dev-dependencies]
 tokio = { version = "1.0.2", features = [ "macros", "rt", "rt-multi-thread", "signal" ] }
