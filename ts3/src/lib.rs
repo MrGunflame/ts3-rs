@@ -57,6 +57,7 @@ extern crate self as ts3;
 
 pub mod client;
 pub mod event;
+pub mod response;
 mod types;
 
 pub use client::{Client, RawResp};

@@ -6,6 +6,7 @@ pub use async_trait::async_trait;
 
 use crate::{
     event::{EventHandler, Handler},
+    response::{ApiKey, Version},
     ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, Encode, Error, ErrorKind,
     ServerGroupId, ServerId,
 };
@@ -335,7 +336,7 @@ impl Client {
         scope: APIKeyScope,
         lifetime: Option<u64>,
         cldbid: Option<u64>,
-    ) -> Result<APIKey> {
+    ) -> Result<ApiKey> {
         self.send(format!(
             "apikeyadd scope={} {} {}",
             scope,
@@ -365,7 +366,7 @@ impl Client {
         start: Option<u64>,
         duration: Option<u64>,
         count: bool,
-    ) -> Result<Vec<APIKey>> {
+    ) -> Result<Vec<ApiKey>> {
         self.send(format!(
             "apikeylist {} {} {} {}",
             match cldbid {
@@ -544,25 +545,6 @@ impl Client {
     pub async fn whoami(&self) -> Result<RawResp> {
         self.send("whoami".to_owned()).await
     }
-}
-
-/// An API Key returned from [`Client.apikeyadd`].
-#[derive(Debug, Decode, Default)]
-pub struct APIKey {
-    pub apikey: String,
-    pub id: u64,
-    pub sid: u64,
-    pub cldbid: u64,
-    pub scope: APIKeyScope,
-    pub time_left: u64,
-}
-
-/// Data returned from the `version` command.
-#[derive(Debug, Decode, Default)]
-pub struct Version {
-    pub version: String,
-    pub build: u64,
-    pub platform: String,
 }
 
 /// RawResp contains all data returned from the server
