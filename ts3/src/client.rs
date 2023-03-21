@@ -6,7 +6,8 @@ pub use async_trait::async_trait;
 
 use crate::{
     event::{EventHandler, Handler},
-    CommandBuilder, Decode, Encode, Error, ErrorKind,
+    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, Encode, Error, ErrorKind,
+    ServerGroupId, ServerId,
 };
 use bytes::Bytes;
 use std::{
@@ -234,7 +235,7 @@ impl Client {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum APIKeyScope {
     Manage,
     Write,
@@ -275,9 +276,10 @@ impl Decode for APIKeyScope {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ServerNotifyRegister {
     Server,
-    Channel(usize),
+    Channel(ChannelId),
     TextServer,
     TextChannel,
     TextPrivate,
@@ -300,8 +302,9 @@ impl Display for ServerNotifyRegister {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TextMessageTarget {
-    Client(usize),
+    Client(ClientId),
     Channel,
     Server,
 }
@@ -460,7 +463,11 @@ impl Client {
 
     /// Adds one or more clients to the server group specified with sgid. Please note that a
     /// client cannot be added to default groups or template groups.
-    pub async fn servergroupaddclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
+    pub async fn servergroupaddclient(
+        &self,
+        sgid: ServerGroupId,
+        cldbid: ClientDatabaseId,
+    ) -> Result<()> {
         self.send(
             CommandBuilder::new("servergroupaddclient")
                 .arg("sgid", sgid)
@@ -473,7 +480,11 @@ impl Client {
 
     /// Removes one or more clients specified with cldbid from the server group specified with
     /// sgid.  
-    pub async fn servergroupdelclient(&self, sgid: usize, cldbid: usize) -> Result<()> {
+    pub async fn servergroupdelclient(
+        &self,
+        sgid: ServerGroupId,
+        cldbid: ClientDatabaseId,
+    ) -> Result<()> {
         self.send(
             CommandBuilder::new("servergroupdelclient")
                 .arg("sgid", sgid)
@@ -500,7 +511,7 @@ impl Client {
     /// Starts the virtual server specified with sid. Depending on your permissions,
     /// you're able to start either your own virtual server only or all virtual
     /// servers in the server instance.  
-    pub async fn serverstart(&self, sid: u64) -> Result<()> {
+    pub async fn serverstart(&self, sid: ServerId) -> Result<()> {
         self.send(format!("serverstart sid={}", sid)).await
     }
 
@@ -508,12 +519,12 @@ impl Client {
     /// you're able to stop either your own virtual server only or all virtual
     /// servers in the server instance. The reasonmsg parameter specifies a
     /// text message that is sent to the clients before the client disconnects.
-    pub async fn serverstop(&self, sid: u64) -> Result<()> {
+    pub async fn serverstop(&self, sid: ServerId) -> Result<()> {
         self.send(format!("serverstop sid={}", sid)).await
     }
 
     /// Switch to the virtualserver (voice) with the given server id
-    pub async fn use_sid(&self, sid: usize) -> Result<()> {
+    pub async fn use_sid(&self, sid: ServerId) -> Result<()> {
         self.send(format!("use sid={}", sid)).await?;
         Ok(())
     }

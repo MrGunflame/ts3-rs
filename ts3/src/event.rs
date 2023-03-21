@@ -3,7 +3,9 @@
 use crate as ts3;
 
 use crate::client::Client;
-use crate::{Decode, Error, ParseError};
+use crate::{
+    ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, Decode, Error, ParseError, ServerGroupId,
+};
 use async_trait::async_trait;
 use std::str::FromStr;
 use tokio::task;
@@ -220,17 +222,17 @@ impl FromStr for ReasonID {
 /// Data for a `cliententerview` event.
 #[derive(Debug, Decode, Default)]
 pub struct ClientEnterView {
-    pub cfid: u64,
-    pub ctid: u64,
+    pub cfid: ChannelId,
+    pub ctid: ChannelId,
     pub reasonid: ReasonID,
-    pub clid: u64,
+    pub clid: ClientId,
     pub client_unique_identifier: String,
     pub client_nickname: String,
     pub client_input_muted: bool,
     pub client_output_muted: bool,
     pub client_outputonly_muted: bool,
     pub client_input_hardware: u64,
-    pub client_output_hardwarer: u64,
+    pub client_output_hardware: u64,
     // client_meta_data: (),
     pub client_is_recording: bool,
     pub client_database_id: u64,
@@ -256,28 +258,28 @@ pub struct ClientEnterView {
 /// Data for a `clientleftview` event.
 #[derive(Debug, Decode, Default)]
 pub struct ClientLeftView {
-    pub cfid: usize,
-    pub ctid: usize,
+    pub cfid: ChannelId,
+    pub ctid: ChannelId,
     pub reasonid: ReasonID,
-    pub invokerid: usize,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
     pub reasonmsg: String,
-    pub bantime: usize,
-    pub clid: usize,
+    pub bantime: u64,
+    pub clid: ClientId,
 }
 
 /// Data for a `serveredited` event.
 #[derive(Debug, Decode, Default)]
 pub struct ServerEdited {
     pub reasonid: ReasonID,
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
     pub virtualserver_name: String,
     pub virtualserver_codec_encryption_mode: String,
-    pub virtualserver_default_server_group: u64,
-    pub virtualserver_default_channel_group: u64,
+    pub virtualserver_default_server_group: ServerGroupId,
+    pub virtualserver_default_channel_group: ChannelGroupId,
     pub virtualserver_hostbanner_url: String,
     pub virtualserver_hostbanner_gfx_url: String,
     pub virtualserver_hostbanner_gfx_interval: u64,
@@ -294,23 +296,23 @@ pub struct ServerEdited {
 /// Data for a `channeldescriptionchanged` event.
 #[derive(Debug, Decode, Default)]
 pub struct ChannelDescriptionChanged {
-    pub cid: u64,
+    pub cid: ChannelId,
 }
 
 /// Data for a `channelpasswordchanged` event.
 #[derive(Debug, Decode, Default)]
 pub struct ChannelPasswordChanged {
-    pub cid: u64,
+    pub cid: ChannelId,
 }
 
 /// Data for a `channelmoved` event.
 #[derive(Debug, Decode, Default)]
 pub struct ChannelMoved {
-    pub cid: u64,
-    pub cpid: u64,
+    pub cid: ChannelId,
+    pub cpid: ChannelId,
     pub order: u64,
     pub reasonid: ReasonID,
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
 }
@@ -321,9 +323,9 @@ pub struct ChannelMoved {
 /// the channel was changed.
 #[derive(Debug, Decode, Default)]
 pub struct ChannelEdited {
-    pub cid: u64,
+    pub cid: ChannelId,
     pub reasonid: u64,
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
     pub channel_name: String,
@@ -352,8 +354,8 @@ pub struct ChannelEdited {
 /// Data for a `channelcreated` event.
 #[derive(Debug, Decode, Default)]
 pub struct ChannelCreated {
-    pub cid: u64,
-    pub cpid: u64,
+    pub cid: ChannelId,
+    pub cpid: ChannelId,
     pub channel_name: String,
     pub channel_topic: String,
     // 4 for Opus Voice, 5 for Opus Music
@@ -375,7 +377,7 @@ pub struct ChannelCreated {
     pub channel_needed_talk_power: u32,
     pub channel_name_phonetic: String,
     pub channel_icon_id: u64,
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
 }
@@ -384,32 +386,32 @@ pub struct ChannelCreated {
 #[derive(Debug, Decode, Default)]
 pub struct ChannelDeleted {
     /// 0 if deleted by the server after exceeding the channel_delete_delay.
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     /// "Server" if deleted by the server after exceeding the channel_delete_delay.
     pub invokername: String,
     /// Empty if deleted by the server after exceeding the channel_delete_delay.
     pub invokeruid: String,
-    pub cid: u64,
+    pub cid: ChannelId,
 }
 
 /// Data for a `clientmoved` event.
 #[derive(Debug, Decode, Default)]
 pub struct ClientMoved {
-    pub ctid: u64,
+    pub ctid: ChannelId,
     pub reasonid: ReasonID,
-    pub invokerid: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
-    pub clid: u64,
+    pub clid: ChannelId,
 }
 
 /// Data for a `textmessage` event.
 #[derive(Debug, Decode, Default)]
 pub struct TextMessage {
-    pub targetmode: usize,
+    pub targetmode: u64,
     pub msg: String,
-    pub target: usize,
-    pub invokerid: usize,
+    pub target: u64,
+    pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
 }
@@ -417,8 +419,8 @@ pub struct TextMessage {
 /// Data for a `tokenused` event.
 #[derive(Debug, Decode, Default)]
 pub struct TokenUsed {
-    pub clid: u64,
-    pub cldbid: u64,
+    pub clid: ClientId,
+    pub cldbid: ClientDatabaseId,
     pub cluid: String,
     pub token: String,
     pub tokencustomset: String,

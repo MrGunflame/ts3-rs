@@ -46,7 +46,7 @@
 //!         println!("Client {} joined!", event.client_nickname);
 //!
 //!         // Send a private message to the client using "sendtextmessage".
-//!         client.sendtextmessage(TextMessageTarget::Client(event.clid as usize), "Hello World!")
+//!         client.sendtextmessage(TextMessageTarget::Client(event.clid), "Hello World!")
 //!             .await.unwrap();
 //!     }
 //! }
@@ -57,10 +57,13 @@ extern crate self as ts3;
 
 pub mod client;
 pub mod event;
+mod types;
 
 pub use client::{Client, RawResp};
 pub use event::EventHandler;
 pub use ts3_derive::Decode;
+
+pub use types::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId};
 
 use std::{
     convert::{Infallible, TryFrom},
