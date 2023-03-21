@@ -7,8 +7,9 @@ pub use async_trait::async_trait;
 use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
-    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, DecodeError, Encode, Error,
-    ErrorKind, ServerGroupId, ServerId,
+    shared::ApiKeyScope,
+    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, Encode, Error, ErrorKind,
+    ServerGroupId, ServerId,
 };
 use bytes::Bytes;
 use std::{
@@ -232,48 +233,6 @@ impl Client {
                 Ok(T::decode(&resp.unwrap().unwrap()).unwrap())
             }
             Err(_) => Err(Error(ErrorKind::SendError)),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ApiKeyScope {
-    Manage,
-    Write,
-    Read,
-}
-
-impl ApiKeyScope {
-    const MANAGE: &str = "manage";
-    const WRITE: &str = "write";
-    const READ: &str = "read";
-
-    fn as_str(&self) -> &str {
-        match self {
-            Self::Manage => Self::MANAGE,
-            Self::Write => Self::WRITE,
-            Self::Read => Self::READ,
-        }
-    }
-}
-
-impl Default for ApiKeyScope {
-    fn default() -> Self {
-        Self::Manage
-    }
-}
-
-impl Decode for ApiKeyScope {
-    type Error = Error;
-
-    fn decode(buf: &[u8]) -> result::Result<Self, Self::Error> {
-        let s = String::decode(buf)?;
-
-        match s.as_str() {
-            Self::MANAGE => Ok(Self::Manage),
-            Self::WRITE => Ok(Self::Write),
-            Self::READ => Ok(Self::Read),
-            _ => Err(Error(ErrorKind::Decode(DecodeError::InvalidApiKeyScope(s)))),
         }
     }
 }

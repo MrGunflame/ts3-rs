@@ -58,6 +58,7 @@ extern crate self as ts3;
 pub mod client;
 pub mod event;
 pub mod response;
+pub mod shared;
 mod types;
 
 pub use client::{Client, RawResp};
@@ -68,8 +69,7 @@ pub use types::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGro
 
 use std::{
     convert::{Infallible, TryFrom},
-    error,
-    fmt::{self, Debug, Display, Formatter, Write},
+    fmt::{Debug, Write},
     io,
     num::ParseIntError,
     str::{from_utf8, FromStr, Utf8Error},

@@ -1,6 +1,6 @@
 //! Response types returned by client requests
 
-use crate::client::ApiKeyScope;
+use crate::shared::ApiKeyScope;
 use crate::Decode;
 
 /// Data returned from the `version` command.
