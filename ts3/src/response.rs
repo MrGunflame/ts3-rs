@@ -1,6 +1,6 @@
 //! Response types returned by client requests
 
-use crate::client::APIKeyScope;
+use crate::client::ApiKeyScope;
 use crate::Decode;
 
 /// Data returned from the `version` command.
@@ -18,6 +18,6 @@ pub struct ApiKey {
     pub id: u64,
     pub sid: u64,
     pub cldbid: u64,
-    pub scope: APIKeyScope,
+    pub scope: ApiKeyScope,
     pub time_left: u64,
 }

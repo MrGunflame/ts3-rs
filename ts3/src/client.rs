@@ -7,8 +7,8 @@ pub use async_trait::async_trait;
 use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
-    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, Encode, Error, ErrorKind,
-    ServerGroupId, ServerId,
+    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, DecodeError, Encode, Error,
+    ErrorKind, ServerGroupId, ServerId,
 };
 use bytes::Bytes;
 use std::{
@@ -237,43 +237,44 @@ impl Client {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum APIKeyScope {
+pub enum ApiKeyScope {
     Manage,
     Write,
     Read,
 }
 
-impl Default for APIKeyScope {
-    fn default() -> APIKeyScope {
+impl ApiKeyScope {
+    const MANAGE: &str = "manage";
+    const WRITE: &str = "write";
+    const READ: &str = "read";
+
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Manage => Self::MANAGE,
+            Self::Write => Self::WRITE,
+            Self::Read => Self::READ,
+        }
+    }
+}
+
+impl Default for ApiKeyScope {
+    fn default() -> Self {
         Self::Manage
     }
 }
 
-impl Display for APIKeyScope {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        use APIKeyScope::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                Manage => "manage",
-                Write => "writer",
-                Read => "read",
-            }
-        )
-    }
-}
-
-impl Decode for APIKeyScope {
+impl Decode for ApiKeyScope {
     type Error = Error;
 
     fn decode(buf: &[u8]) -> result::Result<Self, Self::Error> {
-        Ok(match from_utf8(buf).unwrap() {
-            "manage" => Self::Manage,
-            "write" => Self::Write,
-            "read" => Self::Read,
-            s => panic!("Unexpected enum variant for APIKeyScope: {}", s),
-        })
+        let s = String::decode(buf)?;
+
+        match s.as_str() {
+            Self::MANAGE => Ok(Self::Manage),
+            Self::WRITE => Ok(Self::Write),
+            Self::READ => Ok(Self::Read),
+            _ => Err(Error(ErrorKind::Decode(DecodeError::InvalidApiKeyScope(s)))),
+        }
     }
 }
 
@@ -333,13 +334,13 @@ impl Client {
     ///  to create apikeys for other users using `b_virtualserver_apikey_manage.`
     pub async fn apikeyadd(
         &self,
-        scope: APIKeyScope,
+        scope: ApiKeyScope,
         lifetime: Option<u64>,
         cldbid: Option<u64>,
     ) -> Result<ApiKey> {
         self.send(format!(
             "apikeyadd scope={} {} {}",
-            scope,
+            scope.as_str(),
             match lifetime {
                 None => "".to_owned(),
                 Some(lifetime) => format!("lifetime={}", lifetime),

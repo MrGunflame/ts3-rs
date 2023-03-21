@@ -4,7 +4,8 @@ use crate as ts3;
 
 use crate::client::Client;
 use crate::{
-    ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, Decode, Error, ParseError, ServerGroupId,
+    ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, Decode, DecodeError, Error, ErrorKind,
+    ParseError, ServerGroupId,
 };
 use async_trait::async_trait;
 use std::str::FromStr;
@@ -178,19 +179,18 @@ impl Decode for ReasonID {
     type Error = Error;
 
     fn decode(buf: &[u8]) -> Result<ReasonID, Self::Error> {
-        use ReasonID::*;
-        Ok(match u8::decode(buf)? {
-            0 => SwitchChannel,
-            1 => Moved,
-            2 => Timeout,
-            3 => ChannelKick,
-            4 => ServerKick,
-            5 => Ban,
-            6 => ServerLeave,
-            7 => Edited,
-            8 => ServerShutdown,
-            n => panic!("Unexpected Reasonid {}", n),
-        })
+        match u8::decode(buf)? {
+            0 => Ok(Self::SwitchChannel),
+            1 => Ok(Self::Moved),
+            2 => Ok(Self::Timeout),
+            3 => Ok(Self::ChannelKick),
+            4 => Ok(Self::ServerKick),
+            5 => Ok(Self::Ban),
+            6 => Ok(Self::ServerLeave),
+            7 => Ok(Self::Edited),
+            8 => Ok(Self::ServerShutdown),
+            b => Err(Error(ErrorKind::Decode(DecodeError::InvalidReasonId(b)))),
+        }
     }
 }
 

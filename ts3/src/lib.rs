@@ -105,22 +105,17 @@ enum ErrorKind {
     SendError,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 enum DecodeError {
+    #[error("unexpected eof")]
     UnexpectedEof,
+    #[error("unexpected byte: {0}")]
     UnexpectedByte(u8),
+    #[error("invalid reasonid: {0}")]
+    InvalidReasonId(u8),
+    #[error("invalid apikey scope: {0}")]
+    InvalidApiKeyScope(String),
 }
-
-impl Display for DecodeError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::UnexpectedEof => write!(f, "Unexpected end while decoding"),
-            Self::UnexpectedByte(b) => write!(f, "Unexpected byte decoding: {}", b),
-        }
-    }
-}
-
-impl error::Error for DecodeError {}
 
 /// A list of other objects that are being read from or written to the TS3 server interface.
 /// It implements both `FromStr` and `ToString` as long as `T` itself also implements these traits.
