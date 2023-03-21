@@ -472,21 +472,30 @@ impl Client {
     /// Starts the virtual server specified with sid. Depending on your permissions,
     /// you're able to start either your own virtual server only or all virtual
     /// servers in the server instance.  
-    pub async fn serverstart(&self, sid: ServerId) -> Result<()> {
-        self.send(format!("serverstart sid={}", sid)).await
+    pub async fn serverstart<T>(&self, sid: T) -> Result<()>
+    where
+        T: Into<ServerId>,
+    {
+        self.send(format!("serverstart sid={}", sid.into())).await
     }
 
     /// Stops the virtual server specified with sid. Depending on your permissions,
     /// you're able to stop either your own virtual server only or all virtual
     /// servers in the server instance. The reasonmsg parameter specifies a
     /// text message that is sent to the clients before the client disconnects.
-    pub async fn serverstop(&self, sid: ServerId) -> Result<()> {
-        self.send(format!("serverstop sid={}", sid)).await
+    pub async fn serverstop<T>(&self, sid: T) -> Result<()>
+    where
+        T: Into<ServerId>,
+    {
+        self.send(format!("serverstop sid={}", sid.into())).await
     }
 
     /// Switch to the virtualserver (voice) with the given server id
-    pub async fn use_sid(&self, sid: ServerId) -> Result<()> {
-        self.send(format!("use sid={}", sid)).await?;
+    pub async fn use_sid<T>(&self, sid: T) -> Result<()>
+    where
+        T: Into<ServerId>,
+    {
+        self.send(format!("use sid={}", sid.into())).await?;
         Ok(())
     }
 

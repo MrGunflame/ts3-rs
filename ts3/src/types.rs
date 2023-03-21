@@ -50,6 +50,13 @@ macro_rules! id_impls {
                     u64::decode(buf).map(Self)
                 }
             }
+
+            impl From<u64> for $t {
+                #[inline]
+                fn from(value: u64) -> Self {
+                    Self(value)
+                }
+            }
         )*
     };
 }
