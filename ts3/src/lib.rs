@@ -81,6 +81,12 @@ use thiserror::Error;
 #[error(transparent)]
 pub struct Error(ErrorKind);
 
+impl From<Infallible> for Error {
+    fn from(value: Infallible) -> Self {
+        match value {}
+    }
+}
+
 #[derive(Debug, Error)]
 enum ErrorKind {
     /// Error returned from the ts3 interface. id of 0 indicates no error.

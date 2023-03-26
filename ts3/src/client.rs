@@ -82,9 +82,15 @@ impl Client {
         // Read initial welcome message
         {
             let mut buf = Vec::new();
-            let _ = reader.read_until(b'\r', &mut buf).await;
+            reader
+                .read_until(b'\r', &mut buf)
+                .await
+                .map_err(|e| Error(e.into()))?;
             buf.clear();
-            let _ = reader.read_until(b'\r', &mut buf).await;
+            reader
+                .read_until(b'\r', &mut buf)
+                .await
+                .map_err(|e| Error(e.into()))?;
         }
 
         // read_tx and read_rx are used to communicate between the read and the write
@@ -93,7 +99,7 @@ impl Client {
 
         // Create a new inner client
         let client = Client {
-            tx: tx,
+            tx,
             // handler: Arc::new(RwLock::new()),
             inner: Arc::new(RwLock::new(ClientInner::new())),
         };
@@ -107,7 +113,7 @@ impl Client {
                 // Read from the buffer until a '\r' indicating the end of a line
                 let mut buf = Vec::new();
                 if let Err(err) = reader.read_until(b'\r', &mut buf).await {
-                    println!("{}", err);
+                    client.handle_error(Error(err.into()));
                     continue;
                 }
 
@@ -123,11 +129,14 @@ impl Client {
                 // Query commands return 2 lines, the first being the response data while the sencond
                 // contains the error code. Other commands only return an error.
                 match buf.starts_with(b"error") {
-                    true => {
-                        let _ = read_tx
-                            .send((Vec::new(), Error::decode(&buf).unwrap()))
-                            .await;
-                    }
+                    true => match Error::decode(&buf) {
+                        Ok(err) => {
+                            let _ = read_tx.send((Vec::new(), err)).await;
+                        }
+                        Err(err) => {
+                            client.handle_error(err);
+                        }
+                    },
                     false => {
                         // Clone the current buffer, which contains the response data
                         let resp = buf.clone();
@@ -135,11 +144,18 @@ impl Client {
                         // Read next line for the error
                         buf.clear();
                         if let Err(err) = reader.read_until(b'\r', &mut buf).await {
-                            eprintln!("{}", err);
+                            client.handle_error(Error(err.into()));
                             continue;
                         }
 
-                        let _ = read_tx.send((resp, Error::decode(&buf).unwrap())).await;
+                        match Error::decode(&buf) {
+                            Ok(err) => {
+                                let _ = read_tx.send((resp, err)).await;
+                            }
+                            Err(err) => {
+                                client.handle_error(err);
+                            }
+                        }
                     }
                 }
             }
@@ -203,12 +219,17 @@ impl Client {
     pub async fn send<T, R>(&self, request: R) -> Result<T>
     where
         T: Decode,
+        T::Error: Into<Error>,
         R: Into<Request>,
     {
         self.send_inner(request.into()).await
     }
 
-    async fn send_inner<T: Decode>(&self, request: Request) -> Result<T> {
+    async fn send_inner<T>(&self, request: Request) -> Result<T>
+    where
+        T: Decode,
+        T::Error: Into<Error>,
+    {
         let tx = self.tx.clone();
 
         // Create a new channel for receiving the response
@@ -222,11 +243,20 @@ impl Client {
             .await
         {
             Ok(_) => {
-                let resp = resp_rx.await;
-                Ok(T::decode(&resp.unwrap().unwrap()).unwrap())
+                let resp = resp_rx.await.unwrap()?;
+                let val = T::decode(&resp).map_err(|e| e.into())?;
+                Ok(val)
             }
             Err(_) => Err(Error(ErrorKind::SendError)),
         }
+    }
+
+    fn handle_error<E>(&self, error: E)
+    where
+        E: Into<Error>,
+    {
+        let inner = self.inner.read().unwrap();
+        inner.handler.error(self.clone(), error.into());
     }
 }
 

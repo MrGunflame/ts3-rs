@@ -148,6 +148,10 @@ pub trait EventHandler: Send + Sync {
     async fn clientmoved(&self, _client: Client, _event: ClientMoved) {}
     async fn textmessage(&self, _client: Client, _event: TextMessage) {}
     async fn tokenused(&self, _client: Client, _event: TokenUsed) {}
+
+    fn error(&self, _client: Client, error: Error) {
+        println!("connection error: {}", error);
+    }
 }
 
 /// Defines a reason why an event happened. Used in multiple event types.
