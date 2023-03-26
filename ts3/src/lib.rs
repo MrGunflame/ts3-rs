@@ -127,24 +127,6 @@ pub trait Encode {
     fn encode(&self, buf: &mut String);
 }
 
-/// Implement `Decode` for `Vec` as long as `T` itself also implements `Decode`.
-impl<T> Decode for Vec<T>
-where
-    T: Decode,
-{
-    type Error = <T as Decode>::Error;
-
-    fn decode(buf: &[u8]) -> Result<Self, Self::Error> {
-        // Create a new vec and push all items to it.
-        // Items are separated by a '|' char and no space before/after.
-        let mut list = Vec::new();
-        for b in buf.split(|c| *c == b'|') {
-            list.push(T::decode(&b)?);
-        }
-        Ok(list)
-    }
-}
-
 /// Implements `Serialize` for types that can be directly written as they are formatted.
 macro_rules! impl_serialize {
     ($t:ty) => {
@@ -400,15 +382,6 @@ impl Decode for Error {
 mod tests {
 
     use super::{CommandBuilder, Decode, Error, ErrorKind};
-
-    #[test]
-    fn test_vec_decode() {
-        let buf = b"test|test2";
-        assert_eq!(
-            Vec::<String>::decode(buf).unwrap(),
-            vec!["test".to_owned(), "test2".to_owned()]
-        );
-    }
 
     #[test]
     fn test_string_decode() {

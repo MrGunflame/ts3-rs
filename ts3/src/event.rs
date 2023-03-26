@@ -3,7 +3,8 @@
 use crate as ts3;
 
 use crate::client::Client;
-use crate::shared::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId};
+use crate::shared::list::Comma;
+use crate::shared::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, List, ServerGroupId};
 use crate::{Decode, DecodeError, Error, ErrorKind, ParseError};
 use async_trait::async_trait;
 use std::str::FromStr;
@@ -235,7 +236,7 @@ pub struct ClientEnterView {
     pub client_is_recording: bool,
     pub client_database_id: u64,
     pub client_channel_group_id: u64,
-    pub client_servergroups: Vec<u64>,
+    pub client_servergroups: List<ServerGroupId, Comma>,
     pub client_away: bool,
     pub client_away_message: String,
     pub client_type: u8,

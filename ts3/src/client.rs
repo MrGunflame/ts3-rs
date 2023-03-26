@@ -1,10 +1,11 @@
 // Required for ts3_derive macro.
 #[allow(unused_imports)]
 use crate as ts3;
+use crate::shared::list::Pipe;
 
 pub use async_trait::async_trait;
 
-use crate::shared::{ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId};
+use crate::shared::{ChannelId, ClientDatabaseId, ClientId, List, ServerGroupId, ServerId};
 use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
@@ -326,7 +327,7 @@ impl Client {
         start: Option<u64>,
         duration: Option<u64>,
         count: bool,
-    ) -> Result<Vec<ApiKey>> {
+    ) -> Result<List<ApiKey, Pipe>> {
         self.send(format!(
             "apikeylist {} {} {} {}",
             match cldbid {
