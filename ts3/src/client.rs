@@ -1,6 +1,7 @@
 // Required for ts3_derive macro.
 #[allow(unused_imports)]
 use crate as ts3;
+use crate::request::{Request, RequestBuilder};
 use crate::shared::list::Pipe;
 
 pub use async_trait::async_trait;
@@ -10,19 +11,19 @@ use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
     shared::ApiKeyScope,
-    CommandBuilder, Decode, Encode, Error, ErrorKind,
+    Decode, Encode, Error, ErrorKind,
 };
 use bytes::Bytes;
 use std::{
     collections::HashMap,
     convert::From,
-    fmt::{self, Display, Formatter, Write},
+    fmt::Write,
     result,
     str::from_utf8,
     sync::{Arc, RwLock},
     time::Duration,
 };
-use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::{
     net::{TcpStream, ToSocketAddrs},
     sync::{mpsc, oneshot},
@@ -214,9 +215,16 @@ impl Client {
         data.handler = Arc::new(handler);
     }
 
-    /// Send a raw command directly to the server. The response will be directly decoded
-    /// into the type `T`. To get a HashMap like response, use the `RawResp` struct.
-    pub async fn send<T: Decode>(&self, cmd: String) -> Result<T> {
+    /// Sends a [`Request`] to the server.
+    pub async fn send<T, R>(&self, request: R) -> Result<T>
+    where
+        T: Decode,
+        R: Into<Request>,
+    {
+        self.send_inner(request.into()).await
+    }
+
+    async fn send_inner<T: Decode>(&self, request: Request) -> Result<T> {
         let tx = self.tx.clone();
 
         // Create a new channel for receiving the response
@@ -224,7 +232,7 @@ impl Client {
 
         match tx
             .send(Cmd {
-                bytes: Bytes::from(cmd.into_bytes()),
+                bytes: Bytes::from(request.buf.into_bytes()),
                 resp: resp_tx,
             })
             .await
@@ -247,20 +255,15 @@ pub enum ServerNotifyRegister {
     TextPrivate,
 }
 
-impl Display for ServerNotifyRegister {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        use ServerNotifyRegister::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                Server => "server".to_owned(),
-                Channel(cid) => format!("channel id={}", cid),
-                TextServer => "textserver".to_owned(),
-                TextChannel => "textchannel".to_owned(),
-                TextPrivate => "textprivate".to_owned(),
-            }
-        )
+impl Encode for ServerNotifyRegister {
+    fn encode(&self, buf: &mut String) {
+        match self {
+            Self::Server => *buf += "server",
+            Self::Channel(cid) => *buf += &format!("channel id={}", cid),
+            Self::TextServer => *buf += "textserver",
+            Self::TextChannel => *buf += "textchannel",
+            Self::TextPrivate => *buf += "textprivate",
+        }
     }
 }
 
@@ -298,25 +301,22 @@ impl Client {
         lifetime: Option<u64>,
         cldbid: Option<u64>,
     ) -> Result<ApiKey> {
-        self.send(format!(
-            "apikeyadd scope={} {} {}",
-            scope.as_str(),
-            match lifetime {
-                None => "".to_owned(),
-                Some(lifetime) => format!("lifetime={}", lifetime),
-            },
-            match cldbid {
-                None => "".to_owned(),
-                Some(cldbid) => format!("cldbid={}", cldbid),
-            }
-        ))
-        .await
+        let mut req = RequestBuilder::new("apikeyadd").arg("scope", scope);
+        if let Some(lifetime) = lifetime {
+            req = req.arg("lifetime", lifetime);
+        }
+        if let Some(cldbid) = cldbid {
+            req = req.arg("cldbid", cldbid);
+        }
+
+        self.send(req.build()).await
     }
 
     /// Delete an apikey. Any apikey owned by the current user can always be deleted. Deleting
     /// apikeys from another user requires `b_virtualserver_apikey_manage`.
     pub async fn apikeydel(&self, id: u64) -> Result<()> {
-        self.send(format!("apikeydel id={}", id)).await
+        let req = RequestBuilder::new("apikeydel").arg("id", id);
+        self.send(req.build()).await
     }
 
     /// Lists all apikeys owned by the user, or of all users using `cldbid`=`(0, true).` Usage
@@ -328,32 +328,26 @@ impl Client {
         duration: Option<u64>,
         count: bool,
     ) -> Result<List<ApiKey, Pipe>> {
-        self.send(format!(
-            "apikeylist {} {} {} {}",
-            match cldbid {
-                None => "".to_owned(),
-                Some((cldbid, all)) => format!(
-                    "cldbid={}",
-                    match all {
-                        true => "*".to_owned(),
-                        false => cldbid.to_string(),
-                    }
-                ),
-            },
-            match start {
-                None => "".to_owned(),
-                Some(start) => format!("start={}", start),
-            },
-            match duration {
-                None => "".to_owned(),
-                Some(duration) => format!("duration={}", duration),
-            },
-            match count {
-                true => "-count",
-                false => "",
+        let mut req = RequestBuilder::new("apikeylist");
+        if let Some((cldbid, all)) = cldbid {
+            if all {
+                req = req.arg("cldbid", "*");
+            } else {
+                req = req.arg("cldbid", cldbid);
             }
-        ))
-        .await
+        }
+        if let Some(start) = start {
+            req = req.arg("start", start);
+        }
+        if let Some(duration) = duration {
+            req = req.arg("duration", duration);
+        }
+
+        if count {
+            req = req.flag("-count");
+        }
+
+        self.send(req).await
     }
 
     /// Add a new ban rule on the selected virtual server. One of `ip`, `name`, `uid`
@@ -368,59 +362,65 @@ impl Client {
         banreason: Option<&str>,
         lastnickname: Option<&str>,
     ) -> Result<()> {
-        self.send({
-            CommandBuilder::new("banadd")
-                .arg_opt("ip", ip)
-                .arg_opt("name", name)
-                .arg_opt("uid", uid)
-                .arg_opt("mytsid", mytsid)
-                .arg_opt("time", time)
-                .arg_opt("banreason", banreason)
-                .arg_opt("lastnickname", lastnickname)
-                .into_inner()
-        })
-        .await
+        let mut req = RequestBuilder::new("banadd");
+
+        if let Some(ip) = ip {
+            req = req.arg("ip", ip);
+        }
+        if let Some(name) = name {
+            req = req.arg("name", name);
+        }
+        if let Some(uid) = uid {
+            req = req.arg("uid", uid);
+        }
+        if let Some(mytsid) = mytsid {
+            req = req.arg("mytsid", mytsid);
+        }
+        if let Some(time) = time {
+            req = req.arg("time", time);
+        }
+        if let Some(banreason) = banreason {
+            req = req.arg("banreason", banreason);
+        }
+        if let Some(lastnickname) = lastnickname {
+            req = req.arg("lastnickname", lastnickname);
+        }
+
+        self.send(req).await
     }
 
     /// Sends a text message to all clients on all virtual servers in the TeamSpeak 3
     /// Server instance.
     pub async fn gm(&self, msg: &str) -> Result<()> {
-        self.send(format!("gm={}", msg)).await
+        let req = RequestBuilder::new("gm").arg("msg", msg);
+        self.send(req).await
     }
 
     /// Authenticate with the given data.
     pub async fn login(&self, username: &str, password: &str) -> Result<()> {
-        self.send(
-            CommandBuilder::new("login")
-                .arg("client_login_name", username)
-                .arg("client_login_password", password)
-                .into_inner(),
-        )
-        .await?;
-        Ok(())
+        let req = RequestBuilder::new("login")
+            .arg("client_login_name", username)
+            .arg("client_login_password", password);
+        self.send(req).await
     }
 
     /// Deselects the active virtual server and logs out from the server instance.
     pub async fn logout(&self) -> Result<()> {
-        self.send("logout".to_owned()).await?;
-        Ok(())
+        let req = RequestBuilder::new("logout");
+        self.send(req).await
     }
 
     /// Send a quit command, disconnecting the client and closing the TCP connection
     pub async fn quit(&self) -> Result<()> {
-        self.send("quit".to_owned()).await?;
-        Ok(())
+        let req = RequestBuilder::new("quit");
+        self.send(req).await
     }
 
     pub async fn sendtextmessage(&self, target: TextMessageTarget, msg: &str) -> Result<()> {
-        self.send(
-            CommandBuilder::new("sendtextmessage")
-                .arg("targetmode", target)
-                .arg("msg", msg)
-                .into_inner(),
-        )
-        .await?;
-        Ok(())
+        let req = RequestBuilder::new("sendtextmessage")
+            .arg("targetmode", target)
+            .arg("msg", msg);
+        self.send(req).await
     }
 
     /// Adds one or more clients to the server group specified with sgid. Please note that a
@@ -430,14 +430,10 @@ impl Client {
         sgid: ServerGroupId,
         cldbid: ClientDatabaseId,
     ) -> Result<()> {
-        self.send(
-            CommandBuilder::new("servergroupaddclient")
-                .arg("sgid", sgid)
-                .arg("cldbid", cldbid)
-                .into_inner(),
-        )
-        .await?;
-        Ok(())
+        let req = RequestBuilder::new("servergroupaddclient")
+            .arg("sgid", sgid)
+            .arg("cldbid", cldbid);
+        self.send(req).await
     }
 
     /// Removes one or more clients specified with cldbid from the server group specified with
@@ -447,14 +443,10 @@ impl Client {
         sgid: ServerGroupId,
         cldbid: ClientDatabaseId,
     ) -> Result<()> {
-        self.send(
-            CommandBuilder::new("servergroupdelclient")
-                .arg("sgid", sgid)
-                .arg("cldbid", cldbid)
-                .into_inner(),
-        )
-        .await?;
-        Ok(())
+        let req = RequestBuilder::new("servergroupdelclient")
+            .arg("sgid", sgid)
+            .arg("cldbid", cldbid);
+        self.send(req).await
     }
 
     /// Registers for a specified category of events on a virtual server to receive
@@ -465,9 +457,8 @@ impl Client {
     /// the event parameter while id can be used to limit the notifications to a
     /// specific channel.  
     pub async fn servernotifyregister(&self, event: ServerNotifyRegister) -> Result<()> {
-        self.send(format!("servernotifyregister event={}", event))
-            .await?;
-        Ok(())
+        let req = RequestBuilder::new("servernotifyregister").arg("event", event);
+        self.send(req).await
     }
 
     /// Starts the virtual server specified with sid. Depending on your permissions,
@@ -477,7 +468,8 @@ impl Client {
     where
         T: Into<ServerId>,
     {
-        self.send(format!("serverstart sid={}", sid.into())).await
+        let req = RequestBuilder::new("serverstart").arg("sid", sid.into());
+        self.send(req).await
     }
 
     /// Stops the virtual server specified with sid. Depending on your permissions,
@@ -488,7 +480,8 @@ impl Client {
     where
         T: Into<ServerId>,
     {
-        self.send(format!("serverstop sid={}", sid.into())).await
+        let req = RequestBuilder::new("serverstop").arg("sid", sid.into());
+        self.send(req).await
     }
 
     /// Switch to the virtualserver (voice) with the given server id
@@ -496,24 +489,26 @@ impl Client {
     where
         T: Into<ServerId>,
     {
-        self.send(format!("use sid={}", sid.into())).await?;
-        Ok(())
+        let req = RequestBuilder::new("use").arg("sid", sid.into());
+        self.send(req).await
     }
 
     /// Like `use_sid` but instead use_port uses the voice port to connect to the virtualserver
     pub async fn use_port(&self, port: u16) -> Result<()> {
-        self.send(format!("use port={}", port)).await?;
-        Ok(())
+        let req = RequestBuilder::new("use").arg("port", port);
+        self.send(req).await
     }
 
     /// Returns information about the server version
     pub async fn version(&self) -> Result<Version> {
-        self.send("version".to_owned()).await
+        let req = RequestBuilder::new("version");
+        self.send(req).await
     }
 
     /// Returns information about the query client connected
     pub async fn whoami(&self) -> Result<RawResp> {
-        self.send("whoami".to_owned()).await
+        let req = RequestBuilder::new("whoami");
+        self.send(req).await
     }
 }
 

@@ -2,7 +2,7 @@
 
 pub mod list;
 
-use crate::{Decode, DecodeError, Error, ErrorKind};
+use crate::{Decode, DecodeError, Encode, Error, ErrorKind};
 
 pub use crate::types::{
     ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId,
@@ -21,19 +21,21 @@ impl ApiKeyScope {
     const MANAGE: &str = "manage";
     const WRITE: &str = "write";
     const READ: &str = "read";
-
-    pub(crate) fn as_str(&self) -> &str {
-        match self {
-            Self::Manage => Self::MANAGE,
-            Self::Write => Self::WRITE,
-            Self::Read => Self::READ,
-        }
-    }
 }
 
 impl Default for ApiKeyScope {
     fn default() -> Self {
         Self::Manage
+    }
+}
+
+impl Encode for ApiKeyScope {
+    fn encode(&self, buf: &mut String) {
+        match self {
+            Self::Manage => *buf += Self::MANAGE,
+            Self::Write => *buf += Self::WRITE,
+            Self::Read => *buf += Self::READ,
+        }
     }
 }
 

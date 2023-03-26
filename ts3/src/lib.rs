@@ -57,6 +57,7 @@ extern crate self as ts3;
 
 pub mod client;
 pub mod event;
+pub mod request;
 pub mod response;
 pub mod shared;
 mod types;
@@ -148,45 +149,6 @@ macro_rules! impl_decode {
             }
         }
     };
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct CommandBuilder(String);
-
-impl CommandBuilder {
-    pub fn new<T>(name: T) -> Self
-    where
-        T: ToString,
-    {
-        Self(name.to_string())
-    }
-
-    pub fn arg<T, S>(mut self, key: T, value: S) -> Self
-    where
-        T: AsRef<str>,
-        S: Encode,
-    {
-        self.0.write_char(' ').unwrap();
-        self.0.write_str(key.as_ref()).unwrap();
-        self.0.write_char('=').unwrap();
-        value.encode(&mut self.0);
-        self
-    }
-
-    pub fn arg_opt<T, S>(self, key: T, value: Option<S>) -> Self
-    where
-        T: AsRef<str>,
-        S: Encode,
-    {
-        match value {
-            Some(value) => self.arg(key, value),
-            None => self,
-        }
-    }
-
-    pub fn into_inner(self) -> String {
-        self.0
-    }
 }
 
 /// Implement `Decode` for `()`. Calling `()::decode(&[u8])` will never fail
@@ -376,8 +338,7 @@ impl Decode for Error {
 
 #[cfg(test)]
 mod tests {
-
-    use super::{CommandBuilder, Decode, Error, ErrorKind};
+    use super::{Decode, Error, ErrorKind};
 
     #[test]
     fn test_string_decode() {
@@ -393,26 +354,5 @@ mod tests {
             _ => unreachable!(),
         };
         assert!(id == 0 && msg == "ok".to_owned());
-    }
-
-    #[test]
-    fn test_command_builder() {
-        let cmd = CommandBuilder::new("testcmd");
-        assert_eq!(cmd.clone().into_inner(), "testcmd");
-
-        let cmd = cmd.arg("hello", "world");
-        assert_eq!(cmd.clone().into_inner(), "testcmd hello=world");
-
-        let cmd = cmd.arg("test", "1234");
-        assert_eq!(cmd.clone().into_inner(), "testcmd hello=world test=1234");
-
-        let cmd = cmd.arg_opt("opt", Some("arg"));
-        assert_eq!(
-            cmd.clone().into_inner(),
-            "testcmd hello=world test=1234 opt=arg"
-        );
-
-        let cmd = cmd.arg_opt::<_, &str>("opt2", None);
-        assert_eq!(cmd.into_inner(), "testcmd hello=world test=1234 opt=arg");
     }
 }
