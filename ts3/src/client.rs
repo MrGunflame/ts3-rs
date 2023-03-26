@@ -251,7 +251,7 @@ impl Client {
         }
     }
 
-    fn handle_error<E>(&self, error: E)
+    pub(crate) fn handle_error<E>(&self, error: E)
     where
         E: Into<Error>,
     {

@@ -7,7 +7,7 @@ use crate::shared::list::Comma;
 use crate::shared::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, List, ServerGroupId};
 use crate::{Decode, DecodeError, Error, ErrorKind};
 use async_trait::async_trait;
-use tokio::task;
+use tokio::task::spawn;
 
 impl Client {
     // Check buf for an event key. If one is found, a new task is spawned, the event
@@ -31,104 +31,141 @@ impl Client {
 
         match event_name {
             b"notifycliententerview" => {
-                task::spawn(async move {
-                    handler
-                        .cliententerview(c, ClientEnterView::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ClientEnterView::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.cliententerview(c, event).await });
             }
             b"notifyclientleftview" => {
-                task::spawn(async move {
-                    handler
-                        .clientleftview(c, ClientLeftView::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ClientLeftView::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.clientleftview(c, event).await });
             }
             b"notifyserveredited" => {
-                task::spawn(async move {
-                    handler
-                        .serveredited(c, ServerEdited::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ServerEdited::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.serveredited(c, event).await });
             }
             b"notifychanneldescriptionchanged" => {
-                task::spawn(async move {
-                    handler
-                        .channeldescriptionchanged(
-                            c,
-                            ChannelDescriptionChanged::decode(&buf).unwrap(),
-                        )
-                        .await;
-                });
-                true
+                let event = match ChannelDescriptionChanged::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channeldescriptionchanged(c, event).await });
             }
             b"notifychannelpasswordchanged" => {
-                task::spawn(async move {
-                    handler
-                        .channelpasswordchanged(c, ChannelPasswordChanged::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ChannelPasswordChanged::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channelpasswordchanged(c, event).await });
             }
             b"notifychannelmoved" => {
-                task::spawn(async move {
-                    handler
-                        .channelmoved(c, ChannelMoved::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ChannelMoved::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channelmoved(c, event).await });
             }
             b"notifychanneledited" => {
-                task::spawn(async move {
-                    handler
-                        .channeledited(c, ChannelEdited::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ChannelEdited::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channeledited(c, event).await });
             }
             b"notifychannelcreated" => {
-                task::spawn(async move {
-                    handler
-                        .channelcreated(c, ChannelCreated::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ChannelCreated::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channelcreated(c, event).await });
             }
             b"notifychanneldeleted" => {
-                task::spawn(async move {
-                    handler
-                        .channeldeleted(c, ChannelDeleted::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ChannelDeleted::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.channeldeleted(c, event).await });
             }
             b"notifyclientmoved" => {
-                task::spawn(async move {
-                    handler
-                        .clientmoved(c, ClientMoved::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match ClientMoved::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.clientmoved(c, event).await });
             }
             b"notifytextmessage" => {
-                task::spawn(async move {
-                    handler
-                        .textmessage(c, TextMessage::decode(&buf).unwrap())
-                        .await;
-                });
-                true
+                let event = match TextMessage::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.textmessage(c, event).await });
             }
             b"notifytokenused" => {
-                task::spawn(async move {
-                    handler.tokenused(c, TokenUsed::decode(&buf).unwrap()).await;
-                });
-                true
+                let event = match TokenUsed::decode(&buf) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        handler.error(c, err);
+                        return true;
+                    }
+                };
+
+                spawn(async move { handler.tokenused(c, event).await });
             }
-            _ => false,
+            _ => return false,
         }
+
+        true
     }
 }
 
