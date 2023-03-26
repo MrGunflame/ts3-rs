@@ -295,10 +295,8 @@ impl_serialize!(u32);
 impl_serialize!(u64);
 impl_serialize!(u128);
 
-impl Decode for Error {
-    type Error = Error;
-
-    fn decode(buf: &[u8]) -> Result<Error, Self::Error> {
+impl Error {
+    fn decode(buf: &[u8]) -> Result<Error, Error> {
         let (mut id, mut msg) = (0, String::new());
 
         // Error is a key-value map separated by ' ' with only the id and msg key.
