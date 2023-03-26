@@ -70,7 +70,7 @@ use std::{
     fmt::{Debug, Write},
     io,
     num::ParseIntError,
-    str::{from_utf8, FromStr, Utf8Error},
+    str::{from_utf8, Utf8Error},
 };
 
 use thiserror::Error;
@@ -113,78 +113,6 @@ enum DecodeError {
     InvalidReasonId(u8),
     #[error("invalid apikey scope: {0}")]
     InvalidApiKeyScope(String),
-}
-
-/// A list of other objects that are being read from or written to the TS3 server interface.
-/// It implements both `FromStr` and `ToString` as long as `T` itself also implements these traits.
-#[derive(Debug, PartialEq)]
-pub struct List<T> {
-    items: Vec<T>,
-}
-
-impl<T> List<T> {
-    /// Create a new empty list
-    pub fn new() -> List<T> {
-        List { items: Vec::new() }
-    }
-
-    /// Create a new list filled with the items in the `Vec`.
-    pub fn from_vec(vec: Vec<T>) -> List<T> {
-        List { items: vec }
-    }
-
-    /// Push an item to the end of the list
-    fn push(&mut self, item: T) {
-        self.items.push(item);
-    }
-
-    /// Consumes the List and returns the inner `Vec` of all items in the list.
-    pub fn into_vec(self) -> Vec<T> {
-        self.items
-    }
-}
-
-impl<T> FromStr for List<T>
-where
-    T: FromStr,
-{
-    type Err = <T as FromStr>::Err;
-
-    fn from_str(s: &str) -> Result<List<T>, Self::Err> {
-        let parts: Vec<&str> = s.split("|").collect();
-
-        let mut list = List::new();
-        for item in parts {
-            match T::from_str(&item) {
-                Ok(item) => list.push(item),
-                Err(err) => return Err(err),
-            }
-        }
-
-        Ok(list)
-    }
-}
-
-impl<T> ToString for List<T>
-where
-    T: ToString,
-{
-    fn to_string(&self) -> String {
-        match self.items.len() {
-            0 => "".to_owned(),
-            1 => self.items[0].to_string(),
-            _ => {
-                let mut string = String::new();
-                string.push_str(&self.items[0].to_string());
-                for item in &self.items[1..] {
-                    string.push('|');
-                    string.push_str(&item.to_string());
-                }
-
-                string
-            }
-        }
-    }
 }
 
 /// Any type implementing `Decode` can be directly decoded from the TS3 stream.
@@ -470,9 +398,8 @@ impl Decode for Error {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
 
-    use super::{CommandBuilder, Decode, Error, ErrorKind, List};
+    use super::{CommandBuilder, Decode, Error, ErrorKind};
 
     #[test]
     fn test_vec_decode() {
@@ -497,27 +424,6 @@ mod tests {
             _ => unreachable!(),
         };
         assert!(id == 0 && msg == "ok".to_owned());
-    }
-
-    #[test]
-    fn test_list_to_string() {
-        let mut list = List::new();
-        assert_eq!(list.to_string(), "");
-        list.push(1);
-        assert_eq!(list.to_string(), "1");
-        list.push(2);
-        assert_eq!(list.to_string(), "1|2");
-    }
-
-    #[test]
-    fn test_list_from_str() {
-        let string = "1|2|3|4";
-        assert_eq!(
-            List::from_str(&string).unwrap(),
-            List {
-                items: vec![1, 2, 3, 4]
-            }
-        );
     }
 
     #[test]

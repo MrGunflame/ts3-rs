@@ -1,10 +1,14 @@
 //! Types shared between requests/responses.
 
+pub mod list;
+
 use crate::{Decode, DecodeError, Error, ErrorKind};
 
 pub use crate::types::{
     ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId,
 };
+
+pub use list::List;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ApiKeyScope {
