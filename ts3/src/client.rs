@@ -22,8 +22,8 @@ use std::{
     sync::{Arc, RwLock},
     time::Duration,
 };
+use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{TcpStream, ToSocketAddrs},
     sync::{mpsc, oneshot},
     task::spawn,
@@ -164,13 +164,13 @@ impl Client {
         spawn(async move {
             while let Some(cmd) = rx.recv().await {
                 // Write the command string
-                if let Err(err) = writer.write(&cmd.bytes).await {
+                if let Err(err) = writer.write_all(&cmd.bytes).await {
                     let _ = cmd.resp.send(Err(Error(err.into())));
                     continue;
                 }
 
                 // Write a '\n' to send the command
-                if let Err(err) = writer.write(&[b'\n']).await {
+                if let Err(err) = writer.write_all(&[b'\n']).await {
                     let _ = cmd.resp.send(Err(Error(err.into())));
                     continue;
                 }
