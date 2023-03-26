@@ -3,10 +3,8 @@
 use crate as ts3;
 
 use crate::client::Client;
-use crate::{
-    ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, Decode, DecodeError, Error, ErrorKind,
-    ParseError, ServerGroupId,
-};
+use crate::shared::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId};
+use crate::{Decode, DecodeError, Error, ErrorKind, ParseError};
 use async_trait::async_trait;
 use std::str::FromStr;
 use tokio::task;

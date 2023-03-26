@@ -4,12 +4,12 @@ use crate as ts3;
 
 pub use async_trait::async_trait;
 
+use crate::shared::{ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId};
 use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
     shared::ApiKeyScope,
-    ChannelId, ClientDatabaseId, ClientId, CommandBuilder, Decode, Encode, Error, ErrorKind,
-    ServerGroupId, ServerId,
+    CommandBuilder, Decode, Encode, Error, ErrorKind,
 };
 use bytes::Bytes;
 use std::{

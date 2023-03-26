@@ -65,8 +65,6 @@ pub use client::{Client, RawResp};
 pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
-pub use types::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId};
-
 use std::{
     convert::{Infallible, TryFrom},
     fmt::{Debug, Write},
