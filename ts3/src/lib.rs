@@ -62,7 +62,7 @@ pub mod response;
 pub mod shared;
 mod types;
 
-pub use client::{Client, RawResp};
+pub use client::Client;
 pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
@@ -98,6 +98,8 @@ enum ErrorKind {
     Utf8(#[from] Utf8Error),
     #[error("send error")]
     SendError,
+    #[error("no field")]
+    NoField,
 }
 
 #[derive(Debug, Error)]

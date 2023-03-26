@@ -2,6 +2,7 @@
 #[allow(unused_imports)]
 use crate as ts3;
 use crate::request::{Request, RequestBuilder};
+use crate::response::Response;
 use crate::shared::list::Pipe;
 
 pub use async_trait::async_trait;
@@ -15,11 +16,9 @@ use crate::{
 };
 use bytes::Bytes;
 use std::{
-    collections::HashMap,
     convert::From,
     fmt::Write,
     result,
-    str::from_utf8,
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -41,21 +40,6 @@ impl Error {
             TS3 { id, msg: _ } => *id == 0,
             _ => false,
         }
-    }
-}
-
-// Read a error from a raw server response
-impl From<RawResp> for Error {
-    fn from(mut resp: RawResp) -> Error {
-        Error(ErrorKind::TS3 {
-            id: resp.items[0]
-                .remove("id")
-                .unwrap()
-                .unwrap()
-                .parse()
-                .unwrap(),
-            msg: resp.items[0].remove("msg").unwrap().unwrap(),
-        })
     }
 }
 
@@ -506,61 +490,8 @@ impl Client {
     }
 
     /// Returns information about the query client connected
-    pub async fn whoami(&self) -> Result<RawResp> {
+    pub async fn whoami(&self) -> Result<Response> {
         let req = RequestBuilder::new("whoami");
         self.send(req).await
-    }
-}
-
-/// RawResp contains all data returned from the server
-/// When the items vector contains multiple entries, the server returned a list.
-/// Otherwise only a single item will be in the vector
-/// The HashMap contains all key-value pairs, but values are optional
-#[derive(Clone, Debug)]
-pub struct RawResp {
-    pub items: Vec<HashMap<String, Option<String>>>,
-}
-
-impl From<&[u8]> for RawResp {
-    fn from(buf: &[u8]) -> RawResp {
-        let mut items = Vec::new();
-
-        // Split all items lists into separate strings first
-        // If the content is no list a single item is remained
-        let res: Vec<&str> = from_utf8(&buf).unwrap().split("|").collect();
-        for entry in res {
-            let mut map = HashMap::new();
-
-            // All key-value pairs are separated by ' '
-            let res: Vec<&str> = entry.split(" ").collect();
-            for item in res {
-                // Each pair that contains a '=' has both a key and a value
-                // A pair that has no '=' is only a key
-                // Only split the first '=' as splitting multiple could split strings inside the value
-                let parts: Vec<&str> = item.splitn(2, "=").collect();
-
-                // Insert key and value when both exist
-                // Otherwise None is inserted with the key
-                map.insert(
-                    parts.get(0).unwrap().to_string(),
-                    match parts.len() {
-                        n if n > 1 => Some(parts.get(1).unwrap().to_string()),
-                        _ => None,
-                    },
-                );
-            }
-
-            items.push(map);
-        }
-
-        RawResp { items }
-    }
-}
-
-impl Decode for RawResp {
-    type Error = Error;
-
-    fn decode(buf: &[u8]) -> result::Result<Self, Self::Error> {
-        Ok(buf.into())
     }
 }
