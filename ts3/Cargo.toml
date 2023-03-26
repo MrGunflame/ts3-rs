@@ -19,3 +19,7 @@ thiserror = "1.0.40"
 
 [dev-dependencies]
 tokio = { version = "1.26.0", features = ["macros", "rt", "rt-multi-thread", "signal"] }
+
+[[example]]
+name = "greet"
+path = "../examples/greet.rs"
