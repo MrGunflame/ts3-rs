@@ -75,10 +75,6 @@ use std::{
 
 use thiserror::Error;
 
-pub enum ParseError {
-    InvalidEnum,
-}
-
 /// An error that can occur when interacting with the TS3 query API.
 #[derive(Debug, Error)]
 #[error(transparent)]

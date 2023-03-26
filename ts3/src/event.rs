@@ -5,9 +5,8 @@ use crate as ts3;
 use crate::client::Client;
 use crate::shared::list::Comma;
 use crate::shared::{ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, List, ServerGroupId};
-use crate::{Decode, DecodeError, Error, ErrorKind, ParseError};
+use crate::{Decode, DecodeError, Error, ErrorKind};
 use async_trait::async_trait;
-use std::str::FromStr;
 use tokio::task;
 
 impl Client {
@@ -196,25 +195,6 @@ impl Decode for ReasonID {
 impl Default for ReasonID {
     fn default() -> ReasonID {
         ReasonID::SwitchChannel
-    }
-}
-
-impl FromStr for ReasonID {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<ReasonID, Self::Err> {
-        match s {
-            "0" => Ok(ReasonID::SwitchChannel),
-            "1" => Ok(ReasonID::Moved),
-            "3" => Ok(ReasonID::Timeout),
-            "4" => Ok(ReasonID::ChannelKick),
-            "5" => Ok(ReasonID::ServerKick),
-            "6" => Ok(ReasonID::Ban),
-            "8" => Ok(ReasonID::ServerLeave),
-            "10" => Ok(ReasonID::Edited),
-            "11" => Ok(ReasonID::ServerShutdown),
-            _ => Err(ParseError::InvalidEnum),
-        }
     }
 }
 
