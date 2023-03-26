@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 
 use crate::{Decode, Encode};
 
 /// A list of elements separated by a [`Separator`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct List<T, S>
 where
@@ -19,7 +20,7 @@ where
 {
     /// Creates a new `List` from a [`Vec`].
     #[inline]
-    pub fn new(vec: Vec<T>) -> Self {
+    pub const fn new(vec: Vec<T>) -> Self {
         Self {
             vec,
             _marker: PhantomData,
@@ -30,6 +31,58 @@ where
     #[inline]
     pub fn into_inner(self) -> Vec<T> {
         self.vec
+    }
+}
+
+impl<T, S> Default for List<T, S>
+where
+    S: Separator,
+{
+    #[inline]
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl<T, S> Deref for List<T, S>
+where
+    S: Separator,
+{
+    type Target = Vec<T>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+
+impl<T, S> DerefMut for List<T, S>
+where
+    S: Separator,
+{
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.vec
+    }
+}
+
+impl<T, S> From<Vec<T>> for List<T, S>
+where
+    S: Separator,
+{
+    #[inline]
+    fn from(value: Vec<T>) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<T, S> From<List<T, S>> for Vec<T>
+where
+    S: Separator,
+{
+    #[inline]
+    fn from(value: List<T, S>) -> Self {
+        value.into_inner()
     }
 }
 
@@ -86,7 +139,7 @@ impl Separator for Pipe {
 }
 
 /// The comma (`,`) separator.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Comma;
 
 impl Separator for Comma {
@@ -124,7 +177,9 @@ fn bytes_split<'a>(mut buf: &'a [u8], pat: &[u8]) -> Vec<&'a [u8]> {
 
 #[cfg(test)]
 mod tests {
+    use super::{List, Pipe};
     use crate::shared::list::bytes_split;
+    use crate::Decode;
 
     #[test]
     fn test_bytes_split() {
@@ -153,6 +208,16 @@ mod tests {
                 b"".as_slice(),
                 b"".as_slice()
             ]
+        );
+    }
+
+    #[test]
+    fn test_list_decode() {
+        let input = b"test|test2";
+
+        assert_eq!(
+            &*List::<String, Pipe>::decode(input).unwrap(),
+            &["test", "test2"]
         );
     }
 }
