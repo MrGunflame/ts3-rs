@@ -7,7 +7,7 @@ const PASSWORD: &str = "password";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::new("127.0.0.1:10011").await?;
+    let client = Client::connect("127.0.0.1:10011").await?;
 
     client.set_event_handler(Handler);
 

@@ -68,7 +68,7 @@ pub struct Client {
 
 impl Client {
     /// Create a new connection
-    pub async fn new<A: ToSocketAddrs>(addr: A) -> Result<Client> {
+    pub async fn connect<A: ToSocketAddrs>(addr: A) -> Result<Client> {
         let (tx, mut rx) = mpsc::channel::<Cmd>(32);
 
         let stream = TcpStream::connect(addr)

@@ -12,7 +12,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 //!     // Create a new client and connect to the server query interface
-//!     let client = Client::new("localhost:10011").await?;
+//!     let client = Client::connect("localhost:10011").await?;
 //!
 //!     // switch to virtual server with id 1
 //!     client.use_sid(1).await?;
@@ -28,7 +28,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-//!     let client = Client::new("localhost:10011").await?;
+//!     let client = Client::connect("localhost:10011").await?;
 //!
 //!     client.use_sid(1).await?;
 //!
