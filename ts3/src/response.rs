@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::shared::ApiKeyScope;
+use crate::types::{ServerId, ClientId, ChannelId, ClientDatabaseId};
 use crate::{Decode, DecodeError, Error, ErrorKind};
 
 /// A raw response of at least one [`Entry`].
@@ -128,3 +129,41 @@ pub struct ApiKey {
     pub scope: ApiKeyScope,
     pub time_left: u64,
 }
+
+#[derive(Clone, Debug, Default, Decode)]
+pub struct Whoami {
+    pub virtualserver_status: VirtualServerStatus,
+    pub virtualserver_unique_identifier: String,
+    pub virtualserver_port: u16,
+    pub virtualserver_id: ServerId,
+    pub client_id: ClientId,
+    pub client_channel_id: ChannelId,
+    pub client_nickname: String,
+    pub client_database_id: ClientDatabaseId,
+    pub client_login_name: String,
+    pub client_unique_identifier: String,
+    pub client_origin_server_id: ServerId,
+    _priv: (),
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum VirtualServerStatus {
+    #[default]
+    Unknown,
+    Online,
+    Offline,
+}
+
+impl Decode for VirtualServerStatus {
+    type Error = Error;
+
+    fn decode(buf: &[u8]) -> Result<Self, Self::Error> {
+        match buf {
+            b"unknown" => Ok(Self::Unknown),
+            b"online" => Ok(Self::Online),
+            b"offline" => Ok(Self::Offline),
+            _ => Err(Error(DecodeError::UnexpectedEof.into())),
+        }
+    }
+}
+

@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use crate as ts3;
 use crate::request::{Request, RequestBuilder, ServerNotifyRegister, TextMessageTarget};
-use crate::response::Response;
+use crate::response::Whoami;
 use crate::shared::list::Pipe;
 
 pub use async_trait::async_trait;
@@ -475,7 +475,7 @@ impl Client {
     }
 
     /// Returns information about the query client connected
-    pub async fn whoami(&self) -> Result<Response> {
+    pub async fn whoami(&self) -> Result<Whoami> {
         let req = RequestBuilder::new("whoami");
         self.send(req).await
     }
