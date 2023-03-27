@@ -1,6 +1,6 @@
-use ts3::client::{async_trait, ServerNotifyRegister, TextMessageTarget};
 use ts3::event::{ClientEnterView, EventHandler};
-use ts3::Client;
+use ts3::request::{ServerNotifyRegister, TextMessageTarget};
+use ts3::{async_trait, Client};
 
 const USERNAME: &str = "serveradmin";
 const PASSWORD: &str = "password";

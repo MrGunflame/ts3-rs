@@ -1,4 +1,4 @@
-use crate::Encode;
+use crate::{Encode, types::{ChannelId, ClientId}};
 
 /// An encoded request buffer.
 #[derive(Clone, Debug)]
@@ -57,6 +57,44 @@ impl From<RequestBuilder> for Request {
     #[inline]
     fn from(value: RequestBuilder) -> Self {
         value.build()
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ServerNotifyRegister {
+    Server,
+    Channel(ChannelId),
+    TextServer,
+    TextChannel,
+    TextPrivate,
+}
+
+impl Encode for ServerNotifyRegister {
+    fn encode(&self, buf: &mut String) {
+        match self {
+            Self::Server => *buf += "server",
+            Self::Channel(cid) => *buf += &format!("channel id={}", cid),
+            Self::TextServer => *buf += "textserver",
+            Self::TextChannel => *buf += "textchannel",
+            Self::TextPrivate => *buf += "textprivate",
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TextMessageTarget {
+    Client(ClientId),
+    Channel,
+    Server,
+}
+
+impl Encode for TextMessageTarget {
+    fn encode(&self, buf: &mut String) {
+        match self {
+            Self::Client(clid)=> *buf += &format!("1 target={}", clid),
+            Self::Channel => *buf += "2",
+            Self::Server => *buf += "3",
+        }
     }
 }
 

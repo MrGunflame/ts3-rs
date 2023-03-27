@@ -22,7 +22,8 @@
 //! ```
 //!
 //! ```no_run
-//! use ts3::client::{Client, async_trait, TextMessageTarget};
+//! use ts3::{Client, async_trait};
+//! use ts3::request::{TextMessageTarget};
 //! use ts3::event::{EventHandler, ClientEnterView};
 //!
 //! #[tokio::main]
@@ -55,15 +56,15 @@
 
 extern crate self as ts3;
 
-pub mod client;
+mod client;
 pub mod event;
 pub mod request;
 pub mod response;
 pub mod shared;
 mod types;
 
+pub use async_trait::async_trait;
 pub use client::Client;
-pub use event::EventHandler;
 pub use ts3_derive::Decode;
 
 use std::{

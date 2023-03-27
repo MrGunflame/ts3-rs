@@ -1,23 +1,22 @@
 // Required for ts3_derive macro.
 #[allow(unused_imports)]
 use crate as ts3;
-use crate::request::{Request, RequestBuilder};
+use crate::request::{Request, RequestBuilder, ServerNotifyRegister, TextMessageTarget};
 use crate::response::Response;
 use crate::shared::list::Pipe;
 
 pub use async_trait::async_trait;
 
-use crate::shared::{ChannelId, ClientDatabaseId, ClientId, List, ServerGroupId, ServerId};
+use crate::shared::{ClientDatabaseId, List, ServerGroupId, ServerId};
 use crate::{
     event::{EventHandler, Handler},
     response::{ApiKey, Version},
     shared::ApiKeyScope,
-    Decode, Encode, Error, ErrorKind,
+    Decode, Error, ErrorKind,
 };
 use bytes::Bytes;
 use std::{
     convert::From,
-    fmt::Write,
     result,
     sync::{Arc, RwLock},
     time::Duration,
@@ -257,50 +256,6 @@ impl Client {
     {
         let inner = self.inner.read().unwrap();
         inner.handler.error(self.clone(), error.into());
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ServerNotifyRegister {
-    Server,
-    Channel(ChannelId),
-    TextServer,
-    TextChannel,
-    TextPrivate,
-}
-
-impl Encode for ServerNotifyRegister {
-    fn encode(&self, buf: &mut String) {
-        match self {
-            Self::Server => *buf += "server",
-            Self::Channel(cid) => *buf += &format!("channel id={}", cid),
-            Self::TextServer => *buf += "textserver",
-            Self::TextChannel => *buf += "textchannel",
-            Self::TextPrivate => *buf += "textprivate",
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum TextMessageTarget {
-    Client(ClientId),
-    Channel,
-    Server,
-}
-
-impl Encode for TextMessageTarget {
-    fn encode(&self, writer: &mut String) {
-        use TextMessageTarget::*;
-        write!(
-            writer,
-            "{}",
-            match self {
-                Client(clid) => format!("1 target={}", clid),
-                Channel => "2".to_owned(),
-                Server => "3".to_owned(),
-            }
-        )
-        .unwrap();
     }
 }
 
