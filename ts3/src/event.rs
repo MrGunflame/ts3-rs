@@ -193,7 +193,7 @@ pub trait EventHandler: Send + Sync {
 
 /// Defines a reason why an event happened. Used in multiple event types.
 #[derive(Debug)]
-pub enum ReasonID {
+pub enum ReasonId {
     /// Switched channel themselves or joined server
     SwitchChannel = 0,
     // Moved by another client or channel
@@ -214,10 +214,10 @@ pub enum ReasonID {
     ServerShutdown,
 }
 
-impl Decode for ReasonID {
+impl Decode for ReasonId {
     type Error = Error;
 
-    fn decode(buf: &[u8]) -> Result<ReasonID, Self::Error> {
+    fn decode(buf: &[u8]) -> Result<ReasonId, Self::Error> {
         match u8::decode(buf)? {
             0 => Ok(Self::SwitchChannel),
             1 => Ok(Self::Moved),
@@ -233,9 +233,9 @@ impl Decode for ReasonID {
     }
 }
 
-impl Default for ReasonID {
-    fn default() -> ReasonID {
-        ReasonID::SwitchChannel
+impl Default for ReasonId {
+    fn default() -> ReasonId {
+        ReasonId::SwitchChannel
     }
 }
 
@@ -244,7 +244,7 @@ impl Default for ReasonID {
 pub struct ClientEnterView {
     pub cfid: ChannelId,
     pub ctid: ChannelId,
-    pub reasonid: ReasonID,
+    pub reasonid: ReasonId,
     pub clid: ClientId,
     pub client_unique_identifier: String,
     pub client_nickname: String,
@@ -255,8 +255,8 @@ pub struct ClientEnterView {
     pub client_output_hardware: u64,
     // client_meta_data: (),
     pub client_is_recording: bool,
-    pub client_database_id: u64,
-    pub client_channel_group_id: u64,
+    pub client_database_id: ClientDatabaseId,
+    pub client_channel_group_id: ChannelGroupId,
     pub client_servergroups: List<ServerGroupId, Comma>,
     pub client_away: bool,
     pub client_away_message: String,
@@ -280,7 +280,7 @@ pub struct ClientEnterView {
 pub struct ClientLeftView {
     pub cfid: ChannelId,
     pub ctid: ChannelId,
-    pub reasonid: ReasonID,
+    pub reasonid: ReasonId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
@@ -292,7 +292,7 @@ pub struct ClientLeftView {
 /// Data for a `serveredited` event.
 #[derive(Debug, Decode, Default)]
 pub struct ServerEdited {
-    pub reasonid: ReasonID,
+    pub reasonid: ReasonId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
@@ -331,7 +331,7 @@ pub struct ChannelMoved {
     pub cid: ChannelId,
     pub cpid: ChannelId,
     pub order: u64,
-    pub reasonid: ReasonID,
+    pub reasonid: ReasonId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
@@ -344,7 +344,7 @@ pub struct ChannelMoved {
 #[derive(Debug, Decode, Default)]
 pub struct ChannelEdited {
     pub cid: ChannelId,
-    pub reasonid: u64,
+    pub reasonid: ReasonId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
@@ -418,7 +418,7 @@ pub struct ChannelDeleted {
 #[derive(Debug, Decode, Default)]
 pub struct ClientMoved {
     pub ctid: ChannelId,
-    pub reasonid: ReasonID,
+    pub reasonid: ReasonId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
@@ -430,7 +430,7 @@ pub struct ClientMoved {
 pub struct TextMessage {
     pub targetmode: u64,
     pub msg: String,
-    pub target: u64,
+    pub target: ClientId,
     pub invokerid: ClientId,
     pub invokername: String,
     pub invokeruid: String,
