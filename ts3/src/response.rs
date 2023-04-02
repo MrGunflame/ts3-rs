@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::shared::ApiKeyScope;
-use crate::types::{ServerId, ClientId, ChannelId, ClientDatabaseId};
+use crate::types::{ChannelId, ClientDatabaseId, ClientId, ServerId};
 use crate::{Decode, DecodeError, Error, ErrorKind};
 
 /// A raw response of at least one [`Entry`].
@@ -117,6 +117,7 @@ pub struct Version {
     pub version: String,
     pub build: u64,
     pub platform: String,
+    _priv: (),
 }
 
 /// An API Key returned from [`Client.apikeyadd`].
@@ -128,6 +129,7 @@ pub struct ApiKey {
     pub cldbid: u64,
     pub scope: ApiKeyScope,
     pub time_left: u64,
+    _priv: (),
 }
 
 #[derive(Clone, Debug, Default, Decode)]
@@ -166,4 +168,3 @@ impl Decode for VirtualServerStatus {
         }
     }
 }
-
