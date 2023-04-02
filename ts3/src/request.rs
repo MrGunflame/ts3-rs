@@ -1,4 +1,7 @@
-use crate::{Encode, types::{ChannelId, ClientId}};
+use crate::{
+    types::{ChannelId, ClientId},
+    Encode,
+};
 
 /// An encoded request buffer.
 #[derive(Clone, Debug)]
@@ -91,7 +94,7 @@ pub enum TextMessageTarget {
 impl Encode for TextMessageTarget {
     fn encode(&self, buf: &mut String) {
         match self {
-            Self::Client(clid)=> *buf += &format!("1 target={}", clid),
+            Self::Client(clid) => *buf += &format!("1 target={}", clid),
             Self::Channel => *buf += "2",
             Self::Server => *buf += "3",
         }
