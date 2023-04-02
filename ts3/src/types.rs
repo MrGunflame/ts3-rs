@@ -25,6 +25,10 @@ pub struct ServerGroupId(pub u64);
 #[repr(transparent)]
 pub struct ChannelGroupId(pub u64);
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct ApiKeyId(pub u64);
+
 macro_rules! id_impls {
     ($($t:ty),*$(,)?) => {
         $(
@@ -68,4 +72,5 @@ id_impls! {
     ChannelId,
     ServerGroupId,
     ChannelGroupId,
+    ApiKeyId,
 }

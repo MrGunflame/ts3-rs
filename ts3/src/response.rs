@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 
 use crate::shared::ApiKeyScope;
-use crate::types::{ChannelId, ClientDatabaseId, ClientId, ServerId};
+use crate::types::{ApiKeyId, ChannelId, ClientDatabaseId, ClientId, ServerId};
 use crate::{Decode, DecodeError, Error, ErrorKind};
 
 /// A raw response of at least one [`Entry`].
@@ -124,9 +124,9 @@ pub struct Version {
 #[derive(Debug, Decode, Default)]
 pub struct ApiKey {
     pub apikey: String,
-    pub id: u64,
-    pub sid: u64,
-    pub cldbid: u64,
+    pub id: ApiKeyId,
+    pub sid: ServerId,
+    pub cldbid: ClientDatabaseId,
     pub scope: ApiKeyScope,
     pub time_left: u64,
     _priv: (),

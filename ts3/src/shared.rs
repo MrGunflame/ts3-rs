@@ -5,7 +5,7 @@ pub mod list;
 use crate::{Decode, DecodeError, Encode, Error, ErrorKind};
 
 pub use crate::types::{
-    ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId,
+    ApiKeyId, ChannelGroupId, ChannelId, ClientDatabaseId, ClientId, ServerGroupId, ServerId,
 };
 
 pub use list::List;

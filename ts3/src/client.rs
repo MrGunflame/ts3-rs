@@ -268,7 +268,7 @@ impl Client {
         &self,
         scope: ApiKeyScope,
         lifetime: Option<u64>,
-        cldbid: Option<u64>,
+        cldbid: Option<ClientDatabaseId>,
     ) -> Result<ApiKey> {
         let mut req = RequestBuilder::new("apikeyadd").arg("scope", scope);
         if let Some(lifetime) = lifetime {
@@ -292,7 +292,7 @@ impl Client {
     /// of `cldbid`=... requires `b_virtualserver_apikey_manage`.
     pub async fn apikeylist(
         &self,
-        cldbid: Option<(u64, bool)>,
+        cldbid: Option<(ClientDatabaseId, bool)>,
         start: Option<u64>,
         duration: Option<u64>,
         count: bool,
