@@ -1,7 +1,7 @@
 [package]
 name = "ts3"
-version = "0.3.3"
-authors = ["0xc0001a2040 <mrgunflame@protonmail.com>"]
+version = "0.4.0"
+authors = ["0xc0001a2040 <git@robbsrv.de>"]
 edition = "2021"
 description = "A TeamSpeak3 Query library"
 documentation = "https://docs.rs/ts3"
@@ -14,7 +14,7 @@ repository = "https://github.com/MrGunflame/ts3-rs"
 tokio = { version = "1.26.0", features = ["net", "time", "sync", "io-util"] }
 async-trait = "0.1.42"
 bytes = "1.4.0"
-ts3_derive = { version = "0.2.0", path = "../ts3_derive" }
+ts3_derive = { version = "0.4.0", path = "../ts3_derive" }
 thiserror = "1.0.40"
 
 [dev-dependencies]

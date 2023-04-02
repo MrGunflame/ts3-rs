@@ -1,8 +1,8 @@
 [package]
 name = "ts3_derive"
-version = "0.2.0"
-authors = ["MrGunflame <mrgunflame@protonmail.com>"]
-edition = "2018"
+version = "0.4.0"
+authors = ["MrGunflame <git@robbsrv.de>"]
+edition = "2021"
 description = "Derive macro for ts3 crate"
 documentation = "https://docs.rs/ts3_derive"
 license = "MIT OR Apache-2.0"
