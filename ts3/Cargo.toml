@@ -1,6 +1,6 @@
 [package]
 name = "ts3"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["0xc0001a2040 <git@robbsrv.de>"]
 edition = "2021"
 description = "A TeamSpeak3 Query library"
