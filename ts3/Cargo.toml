@@ -11,7 +11,7 @@ repository = "https://github.com/MrGunflame/ts3-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.26.0", features = ["net", "time", "sync", "io-util"] }
+tokio = { version = "1.26.0", features = ["net", "time", "sync", "io-util", "rt"] }
 async-trait = "0.1.42"
 bytes = "1.4.0"
 ts3_derive = { version = "0.4.0", path = "../ts3_derive" }
