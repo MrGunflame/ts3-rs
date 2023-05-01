@@ -10,7 +10,7 @@ See the docs [here](https://docs.rs/ts3).
 
 Add `ts3` to your `Cargo.toml`:
 ```
-ts3 = "0.3.1"
+ts3 = "0.4.0"
 ```
 
 Basic example usage:
